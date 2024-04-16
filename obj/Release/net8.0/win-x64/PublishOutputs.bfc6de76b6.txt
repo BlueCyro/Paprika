@@ -1,0 +1,4 @@
+C:\Users\Cyro\Documents\Coding Stuff\Software Renderer\bin\Release\net8.0\win-x64\publish\Software Renderer.pdb
+C:\Users\Cyro\Documents\Coding Stuff\Software Renderer\bin\Release\net8.0\win-x64\publish\glfw3.dll
+C:\Users\Cyro\Documents\Coding Stuff\Software Renderer\bin\Release\net8.0\win-x64\publish\SDL2.dll
+C:\Users\Cyro\Documents\Coding Stuff\Software Renderer\bin\Release\net8.0\win-x64\publish\Software Renderer.exe

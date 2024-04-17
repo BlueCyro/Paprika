@@ -203,38 +203,45 @@ public partial class PixelPusher
     }
 
 
-
+    public static readonly Vector<int> zeroInt = new();
+    public static readonly int allBits = new QuickColor(255, 255, 255, 255).RGBA;
     public void DrawPinedaTriangleSIMD(in Triangle tri, in int col)
     {
+        Vector<int> wideCol = new(col);
         Bounds2D triBounds = VectorHelpers.GetTriBounds(tri);
-        // if (Vector128.GreaterThanAll(triBounds.Bounds, SizeVec4.AsVector128()) ||
-        //     Vector128.LessThanAll(triBounds.Bounds, Vector4.Zero.AsVector128()))
-        //     return;
+        if (Vector128.GreaterThanAll(triBounds.Bounds, SizeVec4.AsVector128()) ||
+            Vector128.LessThanAll(triBounds.Bounds, Vector4.Zero.AsVector128()))
+            return;
         
+
         triBounds.BoundsVec4 = Vector4.Clamp(triBounds.BoundsVec4, Vector4.Zero, SizeVec4 - Vector4.One);
         EdgesVectorized edges = new(tri.v1, tri.v2, tri.v3);
 
-        // FillRect(triBounds.Min, triBounds.Max);
+
         int minX = (int)triBounds.Min.X;
         int minY = (int)triBounds.Min.Y;
         int maxX = (int)triBounds.Max.X;
         int maxY = (int)triBounds.Max.Y;
 
 
-        // int j = 0;
         for (int y = maxY; y > minY; y--)
         {
-            for (int x = maxX; x > minX; x -= Vector256<float>.Count)
+            for (int x = maxX; x > minX; x -= Vector<float>.Count)
             {
                 edges.IsInside(x, y, out var e1, out var e2, out var e3);
 
-                for (int i = 0; i < Vector256<float>.Count && x - i > 0; i++)
-                {
-                    if (e1[i] >= 0f && e2[i] >= 0f && e3[i] >= 0f)
-                    {
-                        SetPixel(col, x - i, y);
-                    }
-                }
+                Span<int> bufSlice = PixelBuffer.AsSpan()[(x - Vector<int>.Count + y * size[0])..];
+                // Span<float> zBufSlice = ZBuffer.AsSpan()[(x - Vector<float>.Count + y * size[0])..];
+                Vector<int> bufVec = new(bufSlice);
+
+                var cond1 = Vector.GreaterThanOrEqual(e1, EdgesVectorized.Zero);
+                var cond2 = Vector.GreaterThanOrEqual(e2, EdgesVectorized.Zero);
+                var cond3 = Vector.GreaterThanOrEqual(e3, EdgesVectorized.Zero);
+                var mask = cond1 & cond2 & cond3;
+                Vector<int> maskedCol = Vector.ConditionalSelect(mask, wideCol, bufVec);
+
+                maskedCol.CopyTo(bufSlice);
+                
             }
         }
     }

@@ -26,10 +26,4 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.4" />
   </ItemGroup>
 
-  <!-- <ItemGroup>
-    <Reference Include="Toner">
-      <HintPath>./Toner.exe</HintPath>
-    </Reference>
-  </ItemGroup> -->
-
 </Project>

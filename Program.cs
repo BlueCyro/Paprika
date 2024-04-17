@@ -43,7 +43,7 @@ public class Program
         var triangles = model.LogicalMeshes.SelectMany(m => {
             var meshTris = m.EvaluateTriangles().SelectMany(triangle => {
                 Matrix4x4 worldMat = model.LogicalNodes[m.LogicalIndex].WorldMatrix;
-                worldMat.Translation = new(1f, -1.5f, 5f);
+                worldMat.Translation = new(1f, -2f, 5f);
                 List<Vector4> transformed = [];
 
                 // Console.WriteLine(triangle.A.GetGeometry().GetPosition());
@@ -64,14 +64,8 @@ public class Program
         Triangle[] triArray = MemoryMarshal.Cast<Vector4, Triangle>(triangles.ToArray().AsSpan()).ToArray();
         
  
-        //
-        // float scalar = MathF.Min(pusher.Size[0], pusher.Size[1]) / 0.25f;
-        // var pos = Matrix4x4.CreateTranslation(new Vector3(pusher.Size[0] / 2, pusher.Size[1] / 2, 0));
-        // var halfSize = pusher.SizeVec2 / 2f;
         var identity = Matrix4x4.Identity;
-        // var scale = Matrix4x4.CreateScale(1000f);
         identity *= 150f;
-        // identity.Translation = pusher.SizeVec2.AsVector128().AsVector3() / 2f;
 
 
         Triangle testTri = new()
@@ -87,15 +81,8 @@ public class Program
         Stopwatch timer = new();
         pusher.OnUpdate += (s, delta) => {
             timer.Start();
-            // var tris = MemoryMarshal.Cast<float, Triangle>(TestCube.CubeData.AsSpan());
-            // var tris = MemoryMarshal.Cast<Vector4, Triangle>(triArray.AsSpan());
-            // Console.WriteLine(tris.Length);
             Array.Clear(pusher.PixelBuffer);
             Array.Clear(pusher.ZBuffer);
-
-            //pusher.DrawLine(halfSize, new(halfSize.X + MathF.Sin(TimeFloat / 4) * 256, halfSize.Y + MathF.Cos(TimeFloat / 4) * 256), defaultCol);
-            // pusher.DrawCircle(new(256, 256), 128, new(255, 255, 0, 255));
-            // pusher.DrawTriangle(new(120, 32 + MathF.Sin(TimeFloat) * 196), new(0 + MathF.Cos(TimeFloat) * 16, 32), new(63, 63), new(0, 255, 255, 255));
 
 
             // Quaternion rot = Quaternion.CreateFromYawPitchRoll(TimeFloat, TimeFloat * 1.3f, TimeFloat * 1.5f);
@@ -114,12 +101,9 @@ public class Program
                 byte byteDot = (byte)(MathF.Pow((dot * 0.5f) + 0.5f, 1f) * 255);
 
 
-                
                 if (dot >= 0f)
                 // if (j == 256)
                 {
-                    // int col = new QuickColor(255, 255, 0, 255).RGBA;
-                    // int col = (new QuickColor(255, 255, 255, 255) * dot).RGBA;
                     QuickColor col = new()
                     {
                         RGBA = firstCol
@@ -145,17 +129,15 @@ public class Program
             // triArray.AsParallel().ForAll(tri => {
             //     tri.Transform(localtr);
             //     var dot = Vector3.Dot(tri.Normal, Vector3.UnitZ);
-            //     // Console.WriteLine(tri.Normal);
-                
-            //         QuickColor col = new()
-            //         {
-            //             RGBA = firstCol
-            //         };
-                
-            //     if (dot >= 0f)
+            //     QuickColor col = new()
             //     {
-            //         pusher.DrawPinedaTriangle(tri, (col * dot).RGBA);
-            //     }
+            //         RGBA = firstCol
+            //     };
+            //     col *= dot;
+            //     // pusher.DrawPinedaTriangle(tri, defaultCol);
+            //     // pusher.DrawBounds(tri, defaultCol);
+            //     pusher.DrawPinedaTriangleSIMD(tri, col.RGBA);
+            //     // pusher.DrawTriangle(tri, new QuickColor(255, 128, 0, 255).RGBA);
             // });
 
 
@@ -295,13 +277,11 @@ public readonly ref struct Edges(in Vector2 p1, in Vector2 p2, in Vector2 p3)
 
 
 
-    public readonly bool IsInside(int x, int y)
+    public readonly void IsInside(int x, int y, out float e1, out float e2, out float e3)
     {
-        float e1 = A1 * x + B1 * y + C1;
-        float e2 = A2 * x + B2 * y + C2;
-        float e3 = A3 * x + B3 * y + C3;
-
-        return e1 >= 0 && e2 >= 0 && e3 >= 0;
+        e1 = A1 * x + B1 * y + C1;
+        e2 = A2 * x + B2 * y + C2;
+        e3 = A3 * x + B3 * y + C3;
     }
 }
 
@@ -309,27 +289,27 @@ public readonly ref struct Edges(in Vector2 p1, in Vector2 p2, in Vector2 p3)
 
 public readonly ref struct EdgesVectorized(in Vector2 p1, in Vector2 p2, in Vector2 p3)
 {
-    public static readonly Vector256<float> One = Vector256.Create(1f);
-    public static readonly Vector256<float> Row = Vector256.Create(0f, 1f, 2f, 3f, 4f, 5f, 6f, 7f);
-    public static readonly Vector256<float> Zero = new();
+    public static readonly Vector<float> Zero = new();
+    public static readonly Vector<float> One = new(1f);
+    public static readonly Vector<float> Row = new(Enumerable.Range(0, Vector<float>.Count).Select(i => (float)i).Reverse().ToArray());
 
-    public readonly Vector256<float> A1 = Vector256.Create(p1.Y - p2.Y);
-    public readonly Vector256<float> B1 = Vector256.Create(p2.X - p1.X);
-    public readonly Vector256<float> C1 = Vector256.Create(p1.X * p2.Y - p2.X * p1.Y);
-
-
-    public readonly Vector256<float> A2 = Vector256.Create(p2.Y - p3.Y);
-    public readonly Vector256<float> B2 = Vector256.Create(p3.X - p2.X);
-    public readonly Vector256<float> C2 = Vector256.Create(p2.X * p3.Y - p3.X * p2.Y);
-
-
-    public readonly Vector256<float> A3 = Vector256.Create(p3.Y - p1.Y);
-    public readonly Vector256<float> B3 = Vector256.Create(p1.X - p3.X);
-    public readonly Vector256<float> C3 = Vector256.Create(p3.X * p1.Y - p1.X * p3.Y);
+    public readonly Vector<float> A1 = new(p1.Y - p2.Y);
+    public readonly Vector<float> B1 = new(p2.X - p1.X);
+    public readonly Vector<float> C1 = new(p1.X * p2.Y - p2.X * p1.Y);
 
 
 
-    public readonly void IsInside(in float startX, in float startY, out Vector256<float> e1, out Vector256<float> e2, out Vector256<float> e3)
+    public readonly Vector<float> A2 = new(p2.Y - p3.Y);
+    public readonly Vector<float> B2 = new(p3.X - p2.X);
+    public readonly Vector<float> C2 = new(p2.X * p3.Y - p3.X * p2.Y);
+
+
+    public readonly Vector<float> A3 = new(p3.Y - p1.Y);
+    public readonly Vector<float> B3 = new(p1.X - p3.X);
+    public readonly Vector<float> C3 = new(p3.X * p1.Y - p1.X * p3.Y);
+
+
+    public readonly void IsInside(in int startX, in int startY, out Vector<float> e1, out Vector<float> e2, out Vector<float> e3)
     {
         var startXV = (One * startX) - Row;
         var startYV = One * startY;

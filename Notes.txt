@@ -58,6 +58,40 @@ Pixel pusher is mostly okay, but it needs a few more things.
 1) Mesh geometry is read from disk and stored in a mesh class
 2) Mesh class describes world transform of model
 3) Vertex shader reads mesh data, decides what attributes to take, packages data into custom struct implementation defined by interface, used as generic type in ref struct carrier
-4) Rasterizer processes 
 4) Package is post-processed by rasterizer to transform points into screen coordinates and interpolate all lerpable values
-5)
+5) Fragment shader receives per-pixel interpolated data, decides what color the pixel is based on this data
+
+
+# Where do we start?
+
+- Probably restructure the pixel pusher loop a little bit and move a few things to be internal.
+- Remove event-based code execution, start making mesh class. Figure out what vertex shader needs for interface.
+    * Mesh class can be big and slow, upload will handle boiling down everything into efficient data structures
+    * What does a vertex have on it?
+        - Position
+        - UV
+        - Normal
+        - Attributes
+            * Attributes are defined as one or more primitive types
+            * Attributes are interpolated
+                ! Only floating point types!!!
+            * Attributes can optionally be constant; non-interpolated
+        - Vertex type
+            * Keeping it simple: Either point or triangle, assumed triangle unless queried.
+        - Material index
+    * Vertices are stored in slow mesh format
+        - Vertex data is sorted by material index
+        - Vertex shader reads incoming vertices
+        - Attributes are read or added depending on type of vertex shader
+        - Attributes are stored in user-defined attribute struct
+        - Attributes are then passed via ref struct container to rasterizer for fragmenting
+    
+    * Triangle is generated from vertices.
+    * What does a triangle have on it?
+        - 3 vertices
+        - Implicit normal
+        - Edges
+        - Edge function bases
+        ? Maybe make it generic for 2D and 3D?
+
+* How is a 

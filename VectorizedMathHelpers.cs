@@ -81,14 +81,10 @@ public static class VectorHelpers
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bounds2D GetTriBounds(in Triangle tri)
+    public static void GetTriBounds(in Triangle tri, in Vector2 min, in Vector2 max, out Vector2 bboxMin, out Vector2 bboxMax)
     {
-        return new()
-        {
-            Min = Vector2.Min(Vector2.Min(tri.v1, tri.v2), tri.v3),
-            Max = Vector2.Max(Vector2.Max(tri.v1, tri.v2), tri.v3),
-            // Mid = (tri.v1 + tri.v2 + tri.v3) / 3f
-        };
+        bboxMin = Vector2.Clamp(Vector2.Min(Vector2.Min(tri.v1, tri.v2), tri.v3), min, max);
+        bboxMax = Vector2.Clamp(Vector2.Max(Vector2.Max(tri.v1, tri.v2), tri.v3), min, max);
     }
 
 
@@ -97,4 +93,8 @@ public static class VectorHelpers
     {
         return A * (1 - lerp) + B * lerp;
     }
+
+
+
+    // public static void InterpolateBarycentric(in )
 }

@@ -25,17 +25,17 @@ public partial class PixelPusher
             SizeFloat = Vector64.Create<float>([value[0], value[1]]);
             SizeVec2 = new(value[0], value[1]);
             SizeVec4 = new(value[0], value[1], value[0], value[1]);
+            TotalLength = value[0] * value[1];
         }
     }
 
     public Vector64<float> SizeFloat { get; private set; }
-
     public Vector2 SizeVec2 { get; private set; }
-
     public Vector4 SizeVec4 { get; private set; }
-
+    public int TotalLength { get; private set; }
     private Vector64<int> size;
-    
+
+
     public int[] PixelBuffer => bufferSwap ? pixelBuffer2 : pixelBuffer1;
     public Span<byte> PixelBufferBytes => MemoryMarshal.Cast<int, byte>(PixelBuffer.AsSpan());
 
@@ -139,7 +139,10 @@ public partial class PixelPusher
 
     private void Update(double delta)
     {
+        Array.Clear(PixelBuffer);
+        Array.Fill(ZBuffer, float.MaxValue);
         OnUpdate?.Invoke(this, delta);
+        PushPixels();
     }
 
 

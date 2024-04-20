@@ -37,7 +37,13 @@ public class Program
         Console.WriteLine($"Using vector size of {Vector<byte>.Count * 8} bits for rasterization");
         var pusher = new PixelPusher("Paprika Renderer", Vector64.Create(1280, 1024));
 
-        var model = ModelRoot.Load("./Models/USA_Pizza.glb");
+        if (args.Length == 0 || !Directory.Exists(Path.GetDirectoryName(args[0])))
+        {
+            Console.WriteLine("Please specify a directory");
+            return;
+        }
+
+        var model = ModelRoot.Load($"{args[0]}/USA_Pizza.glb");
 
         var triangles = model.LogicalMeshes.SelectMany(m => {
             var meshTris = m.EvaluateTriangles().SelectMany(triangle => {
@@ -68,52 +74,57 @@ public class Program
 
 
         Stopwatch timer = new();
-        pusher.OnUpdate += (s, delta) => {
-            timer.Start();
-            Quaternion rot = Quaternion.CreateFromYawPitchRoll(TimeFloat * 45f * DEG2RAD, 30f * DEG2RAD, 0f);
-            var localtr = Matrix4x4.Transform(identity, rot);
-            localtr.Translation = pusher.SizeVec2.AsVector128().AsVector3() / 2f + new Vector3(0f, 0f, 2000f) /* + new Vector3(0f, 0f, -10f + (MathF.Sin(TimeFloat * MathF.PI) * 0.5f + 0.5f) * 100f)*/;
-
-
-
-            int j = 0;
-
-            Span<int> pixelBuf = pusher.PixelBuffer.AsSpan();
-            Span<float> zBuf = pusher.ZBuffer.AsSpan();
-
-
-            foreach (var tri in triArray)
-            {
-                Triangle curTri = tri;
-                curTri.Transform(localtr);
-                var dot = Vector3.Dot(curTri.Normal, Vector3.UnitZ);
-                byte byteDot = (byte)(MathF.Pow((dot * 0.5f) + 0.5f, 1f) * 255);
-
-
-                if (dot >= 0f)
-                // if (j == 256)
-                {
-                    QuickColor col = new()
-                    {
-                        RGBA = firstCol
-                    };
-                    col *= dot;
-                    // pusher.DrawPinedaTriangle(tri, defaultCol);
-                    // pusher.DrawBounds(tri, defaultCol);
-                    var white = (new QuickColor(255, 255, 255, 255) * dot).RGBA;
-                    pusher.DrawPinedaTriangleSIMD(curTri, white, pixelBuf, zBuf);
-                    // pusher.DrawTriangle(tri, new QuickColor(255, 128, 0, 255).RGBA);
-                }
-                j++;
-            }
-
-            timer.Stop();
-
-            Console.WriteLine(timer.Elapsed.TotalMilliseconds);
-            timer.Reset();
-        };
+        pusher.OnUpdate += (s, delta) => DoRender(s, delta, pusher, timer, identity, triArray);
 
         pusher.StartRender();
+    }
+
+
+
+    public static void DoRender(object? s, double delta, PixelPusher pusher, Stopwatch timer, Matrix4x4 identity, Triangle[] triArray)
+    {
+        timer.Start();
+        Quaternion rot = Quaternion.CreateFromYawPitchRoll(TimeFloat * 45f * DEG2RAD, 30f * DEG2RAD, 0f);
+        var localtr = Matrix4x4.Transform(identity, rot);
+        localtr.Translation = pusher.SizeVec2.AsVector128().AsVector3() / 2f + new Vector3(0f, 0f, 2000f) /* + new Vector3(0f, 0f, -10f + (MathF.Sin(TimeFloat * MathF.PI) * 0.5f + 0.5f) * 100f)*/;
+
+
+
+        // int j = 0;
+
+        Span<int> pixelBuf = pusher.PixelBuffer.AsSpan();
+        Span<float> zBuf = pusher.ZBuffer.AsSpan();
+
+
+        foreach (var tri in triArray)
+        {
+            Triangle curTri = tri;
+            curTri.Transform(localtr);
+            var dot = Vector3.Dot(curTri.Normal, Vector3.UnitZ);
+
+
+            if (dot >= 0f)
+            // if (j == 256)
+            {
+                // QuickColor col = new()
+                // {
+                //     RGBA = firstCol
+                // };
+                // col *= dot;
+                // pusher.DrawPinedaTriangle(tri, defaultCol);
+                // pusher.DrawBounds(tri, defaultCol);
+                var white = (new QuickColor(255, 255, 255, 255) * dot).RGBA;
+                pusher.DrawPinedaTriangleSIMD(curTri, white, pixelBuf, zBuf);
+                // pusher.DrawTriangle(tri, new QuickColor(255, 128, 0, 255).RGBA);
+            }
+            // j++;
+        }
+
+        timer.Stop();
+
+
+        Console.WriteLine($"[Paprika] Took: {timer.Elapsed.TotalMilliseconds}ms");
+        timer.Reset();
     }
 }
 

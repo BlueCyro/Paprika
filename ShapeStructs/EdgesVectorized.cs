@@ -13,21 +13,21 @@ public readonly ref struct EdgesVectorized(in Vector2 p1, in Vector2 p2, in Vect
 
 
 
-    public readonly Vector<float> A1 = new(p1.Y - p2.Y);
-    public readonly Vector<float> B1 = new(p2.X - p1.X);
-    public readonly Vector<float> C1 = new(p1.X * p2.Y - p2.X * p1.Y);
+    public readonly Vector<float> A1 = new(p2.Y - p3.Y);
+    public readonly Vector<float> B1 = new(p3.X - p2.X);
+    public readonly Vector<float> C1 = new(p2.X * p3.Y - p3.X * p2.Y);
 
 
 
-    public readonly Vector<float> A2 = new(p2.Y - p3.Y);
-    public readonly Vector<float> B2 = new(p3.X - p2.X);
-    public readonly Vector<float> C2 = new(p2.X * p3.Y - p3.X * p2.Y);
+    public readonly Vector<float> A2 = new(p3.Y - p1.Y);
+    public readonly Vector<float> B2 = new(p1.X - p3.X);
+    public readonly Vector<float> C2 = new(p3.X * p1.Y - p1.X * p3.Y);
 
 
 
-    public readonly Vector<float> A3 = new(p3.Y - p1.Y);
-    public readonly Vector<float> B3 = new(p1.X - p3.X);
-    public readonly Vector<float> C3 = new(p3.X * p1.Y - p1.X * p3.Y);
+    public readonly Vector<float> A3 = new(p1.Y - p2.Y);
+    public readonly Vector<float> B3 = new(p2.X - p1.X);
+    public readonly Vector<float> C3 = new(p1.X * p2.Y - p2.X * p1.Y);
 
 
 

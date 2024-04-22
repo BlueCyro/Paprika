@@ -34,12 +34,12 @@ public partial class PixelPusher
     public Vector4 SizeVec4 { get; private set; }
     public int TotalLength { get; private set; }
     private Vector64<int> size;
-
+    private ulong frame;
 
     public int[] PixelBuffer => bufferSwap ? pixelBuffer2 : pixelBuffer1;
     public Span<byte> PixelBufferBytes => MemoryMarshal.Cast<int, byte>(PixelBuffer.AsSpan());
 
-    public event EventHandler<double> OnUpdate;
+    public event EventHandler<RenderEventArgs> OnUpdate;
 
 
     private GL gl;
@@ -66,6 +66,7 @@ public partial class PixelPusher
         var opts = WindowOptions.Default;
         opts.Title = name;
         opts.Size = new Vector2D<int>(size[0], size[1]);
+        // opts.VSync = false;
         window = Window.Create(opts);
         Size = size;
 
@@ -141,7 +142,7 @@ public partial class PixelPusher
     {
         Array.Clear(PixelBuffer);
         Array.Fill(ZBuffer, float.MaxValue);
-        OnUpdate?.Invoke(this, delta);
+        OnUpdate?.Invoke(this, new(delta, frame++));
         PushPixels();
     }
 
@@ -240,4 +241,11 @@ public partial class PixelPusher
         pixelView.Update(PixelBufferBytes, (uint)Size[0], (uint)Size[1]);
         bufferSwap = !bufferSwap;
     }
+}
+
+
+public class RenderEventArgs(double delta, ulong frame) : EventArgs
+{
+    public double Delta = delta;
+    public ulong Frame = frame;
 }

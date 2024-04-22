@@ -116,12 +116,13 @@ public partial class PixelPusher
     public static readonly Vector<int> fullByte = new(255);
     public static readonly Vector<int> zeroInt = new();
     public static readonly int allBits = new QuickColor(255, 255, 255, 255).RGBA;
-    public static readonly int Red = new QuickColor(255, 0, 0, 255).RGBA;
-    public static readonly int Green = new QuickColor(0, 255, 0, 255).RGBA;
-    public static readonly int Blue = new QuickColor(0, 0, 255, 255).RGBA;
+    public static readonly Vector3 Red = new(1f, 0f, 0f);
+    public static readonly Vector3 Green = new(0f, 1f, 0f);
+    public static readonly Vector3 Blue = new(0f, 0f, 1f);
 
 
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawPinedaTriangleSIMD(in Triangle tri, in int col, in Span<int> bufSlice, in Span<float> zBufSlice)
     {
         Vector<int> wideCol = new(col);
@@ -139,7 +140,7 @@ public partial class PixelPusher
         int width = Size[0];
         var zeroVec = EdgesVectorized.Zero;
         // var oneVec = EdgesVectorized.One;
-        Vector<float> magnitude;
+        // Vector<float> magnitude;
         BigVec3 eN;
 
 
@@ -150,21 +151,32 @@ public partial class PixelPusher
         {
             for (int x = maxX; x > minX; x -= Vector<int>.Count)
             {
-                edges.IsInside(x, y, out eN, out magnitude);
+                edges.IsInside(x, y, out eN, out _);
 
 
                 int vecStart = Math.Max(x - Vector<int>.Count + y * width, 0);
+                int vecFloatStart = Math.Max(x - Vector<float>.Count + y * width, 0);
                 ref int first = ref bufSlice[vecStart];
+                ref float firstZ = ref zBufSlice[vecFloatStart];
 
                 Vector<int> bufVec = Unsafe.As<int, Vector<int>>(ref first);
-                // var zSlice = zBufSlice[sliceStart..];
-                // Vector<float> zVec = new(zSlice);
+                Vector<float> bufVecZ = Unsafe.As<float, Vector<float>>(ref firstZ);
+
+                VectorHelpers.InterpolateBarycentric(Red, Green, Blue, eN, out BigVec3 bigCol);
+                VectorHelpers.InterpolateBarycentric(tri.uv1, tri.uv2, tri.uv3, eN, out BigVec2 bigUV);
+                VectorHelpers.InterpolateBarycentric(tri.p1.Z, tri.p2.Z, tri.p3.Z, eN, out Vector<float> bigDepth);
 
 
-                BigVec3 bigColor = new QuickColor(Red) * eN.X + new QuickColor(Green) * eN.Y + new QuickColor(Blue) * eN.Z;
-                bigColor.ConvertToInt32(out var RWide, out var GWide, out var BWide);
-                Vector<int> wideInterp = fullByte << 24 | BWide << 16 | GWide << 8 | RWide;
+                bigUV *= 255f;
+                bigUV.ConvertToInt32(out var RWide, out var GWide);
+                Vector<int> wideInterp = fullByte << 24 | zeroInt << 16 | GWide << 8 | RWide;
 
+                // bigCol *= 255f;
+                // bigCol.ConvertToInt32(out var RWide, out var GWide, out var BWide);
+
+                // Vector<int> wideInterp = fullByte << 24 | BWide << 16 | GWide << 8 | RWide;
+
+                var depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
 
                 var mask =
                     Vector.GreaterThanOrEqual(eN.X, zeroVec) &
@@ -173,12 +185,12 @@ public partial class PixelPusher
 
 
                 // var unsafeCol = Unsafe.As<int, Vector<int>>(ref interpolatedColors);
-                Vector<int> maskedCol = Vector.ConditionalSelect(mask, wideInterp, bufVec);
-                // Vector<float> maskedZ = Vector.ConditionalSelect(mask, interpZ, zVec);
+                Vector<int> maskedCol = Vector.ConditionalSelect(mask & depthMask, wideCol, bufVec);
+                Vector<float> maskedZ = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
                 maskedCol.StoreUnsafe(ref first);
-                // maskedZ.CopyTo(zSlice);
+                maskedZ.StoreUnsafe(ref firstZ);
 
-                // FillRect(new(x - Vector<int>.Count, y - 1), new(x, y), x / Vector<int>.Count % 2 == 0 ? new QuickColor(255, 0, 0, 255).RGBA : new QuickColor(0, 255, 0, 255).RGBA);
+                // FillRect(new(x - Vector<int>.Count, y - 1), new(x, y), x / Vector<int>.Count % 2 == 0 ? new QuickColor(128, 0, 0, 255).RGBA : new QuickColor(0, 128, 0, 255).RGBA);
                 
             }
 
@@ -197,82 +209,6 @@ public partial class PixelPusher
                 SetPixel(color, x, y);
             }
         }
-    }
-}
-
-
-
-// public readonly ref struct Linear2DReader<T>(ref T[] array, in int start, in int width, in int height) where T: unmanaged
-// {
-//     public readonly int Width = width;
-//     public readonly int Height = height;
-
-//     readonly ref T[] arrayRef = ref array;
-
-
-// }
-
-
-
-public struct BigVec3(in Vector<float> x, in Vector<float> y, in Vector<float> z)
-{
-    public Vector<float> X = x;
-    public Vector<float> Y = y;
-    public Vector<float> Z = z;
-
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ReadElement(in int index, out Vector3 instance)
-    {
-        var offset = Unsafe.As<float, BigVec3>(ref Unsafe.Add(ref Unsafe.As<BigVec3, float>(ref this), index));
-        
-        instance.X = offset.X[0];
-        instance.Y = offset.Y[0];
-        instance.Z = offset.Z[0];
-    }
-
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void ConvertToInt32(out Vector<int> xInt, out Vector<int> yInt, out Vector<int> zInt)
-    {
-        xInt = Vector.ConvertToInt32(X);
-        yInt = Vector.ConvertToInt32(Y);
-        zInt = Vector.ConvertToInt32(Z);
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static BigVec3 operator *(BigVec3 left, Vector<float> right)
-    {
-        return new(
-            left.X * right,
-            left.Y * right,
-            left.Z * right
-        );
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static BigVec3 operator +(BigVec3 left, BigVec3 right)
-    {
-        return new(
-            left.X + right.X,
-            left.Y + right.Y,
-            left.Z + right.Z
-        );
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static BigVec3 operator /(BigVec3 left, Vector<float> right)
-    {
-        return new(
-            left.X / right,
-            left.Y / right,
-            left.Z / right
-        );
     }
 }
 

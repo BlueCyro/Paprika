@@ -3,6 +3,7 @@ using System.Runtime.Intrinsics;
 using System.Numerics;
 using System.Diagnostics;
 using SharpGLTF.Schema2;
+using SharpGLTF.Geometry;
 
 
 namespace Paprika;
@@ -43,87 +44,130 @@ public class Program
             return;
         }
 
-        var model = ModelRoot.Load($"{args[0]}/USA_Pizza.glb");
+        var model = ModelRoot.Load($"{args[0]}");
+        List<Triangle> triList = [];
 
         var triangles = model.LogicalMeshes.SelectMany(m => {
-            var meshTris = m.EvaluateTriangles().SelectMany(triangle => {
+            var meshTris = m.EvaluateTriangles().Select<(IVertexBuilder A, IVertexBuilder B, IVertexBuilder C, Material mat), Triangle>(triangle => {
                 Matrix4x4 worldMat = model.LogicalNodes[m.LogicalIndex].WorldMatrix;
-                worldMat.Translation = new(1f, -2f, 5f);
-                List<Vector4> transformed = [];
+                worldMat.Translation += new Vector3(0f, 0f, 0f);
+                // List<Vector4> transformed = [];
 
-                // Console.WriteLine(triangle.A.GetGeometry().GetPosition());
-                // Console.WriteLine(triangle.B.GetGeometry().GetPosition());
-                // Console.WriteLine(triangle.C.GetGeometry().GetPosition());
-                transformed.AddRange([
-                    new(Vector3.Transform(triangle.A.GetGeometry().GetPosition(), worldMat), 1f),
-                    new(Vector3.Transform(triangle.B.GetGeometry().GetPosition(), worldMat), 1f),
-                    new(Vector3.Transform(triangle.C.GetGeometry().GetPosition(), worldMat), 1f),
-                    new(0f, 0f, 0f, 1f)
-                ]);
-                return transformed;
+                IVertexBuilder[] points = [triangle.A, triangle.B, triangle.C];
+                Vertex[] vertices = new Vertex[3];
+
+
+                for (int i = 0; i < points.Length; i++)
+                {
+                    var data = points[i].GetGeometry();
+                    var normal = data.TryGetNormal(out Vector3 aNorm) ? aNorm : new(0.5f, 0.5f, 1f);
+                    var uv = points[i].GetMaterial().GetTexCoord(0);
+
+                    vertices[i] = new(Vector3.Transform(data.GetPosition(), worldMat), Vector3.TransformNormal(normal, worldMat), default, uv);
+                }
+
+                
+                Triangle tri = new(vertices);
+
+                
+                // Console.WriteLine(CNormal);
+                return tri;
             }); 
             return meshTris;
         });
 
 
-        Triangle[] triArray = MemoryMarshal.Cast<Vector4, Triangle>(triangles.ToArray().AsSpan()).ToArray();
+        Triangle[] triArray = triangles.ToArray();
         
- 
-        var identity = Matrix4x4.Identity;
-        identity *= 150f;
-
 
         Stopwatch timer = new();
-        pusher.OnUpdate += (s, delta) => DoRender(s, delta, pusher, timer, identity, triArray);
+        double avg = 0;
+        pusher.OnUpdate += (s, evArgs) => DoRender(s, evArgs, pusher, timer, triArray, ref avg);
+
 
         pusher.StartRender();
     }
 
 
 
-    public static void DoRender(object? s, double delta, PixelPusher pusher, Stopwatch timer, Matrix4x4 identity, Triangle[] triArray)
+    public static void DoRender(object? s, RenderEventArgs args, PixelPusher pusher, Stopwatch timer, Triangle[] triArray, ref double avg)
     {
         timer.Start();
-        Quaternion rot = Quaternion.CreateFromYawPitchRoll(TimeFloat * 45f * DEG2RAD, 30f * DEG2RAD, 0f);
-        var localtr = Matrix4x4.Transform(identity, rot);
-        localtr.Translation = pusher.SizeVec2.AsVector128().AsVector3() / 2f + new Vector3(0f, 0f, 2000f) /* + new Vector3(0f, 0f, -10f + (MathF.Sin(TimeFloat * MathF.PI) * 0.5f + 0.5f) * 100f)*/;
+        
 
-
-
-        // int j = 0;
+        int j = 0;
 
         Span<int> pixelBuf = pusher.PixelBuffer.AsSpan();
         Span<float> zBuf = pusher.ZBuffer.AsSpan();
 
+        Matrix4x4 viewMatrix = Matrix4x4.CreateLookAt(new(0f, 0f, 0f), new(0f, 0f, 1f), Vector3.UnitY);
+        Matrix4x4 projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(60f * DEG2RAD, pusher.SizeVec2.X / pusher.SizeVec2.Y, 0.1f, 1000f);
+        Matrix4x4 translation = Matrix4x4.CreateTranslation(new(0f, -0.5f, 3f));
 
+        Quaternion rot = Quaternion.CreateFromYawPitchRoll(180f * DEG2RAD + MathF.Sin(TimeFloat) * 30f * DEG2RAD, 25f * DEG2RAD, 0f);
+        
         foreach (var tri in triArray)
         {
-            Triangle curTri = tri;
-            curTri.Transform(localtr);
-            var dot = Vector3.Dot(curTri.Normal, Vector3.UnitZ);
+            Matrix4x4 translated = Matrix4x4.Transform(tri.TriMatrix, rot) * translation;
+
+
+
+
+            Triangle curTri = tri with
+            {
+                TriMatrix =
+                    Matrix4x4.Transform(tri.TriMatrix, rot) *
+                    translation
+            };
+            
+            var dot = Vector3.Dot(curTri.Normal, Vector3.Normalize(new Vector3(0f, 0f, 0f) - curTri.Center));
+
+            curTri.TriMatrix =
+                curTri.TriMatrix *
+                viewMatrix *
+                projectionMatrix;
+            
+            
+
+            // curTri.TriMatrix *= perspectiveDivide;
+            // curTri.TriMatrix *= screenTransformMatrix;
+
+
+            curTri.p1 /= curTri.m1N.W;
+            curTri.p2 /= curTri.m2N.W;
+            curTri.p3 /= curTri.m3N.W;
+
+
+
+            curTri.v1 = new((curTri.v1.X + 1) * 0.5f * pusher.SizeVec2.X, (curTri.v1.Y + 1f) * 0.5f * pusher.SizeVec2.Y);
+            curTri.v2 = new((curTri.v2.X + 1) * 0.5f * pusher.SizeVec2.X, (curTri.v2.Y + 1f) * 0.5f * pusher.SizeVec2.Y);
+            curTri.v3 = new((curTri.v3.X + 1) * 0.5f * pusher.SizeVec2.X, (curTri.v3.Y + 1f) * 0.5f * pusher.SizeVec2.Y);
+
 
 
             if (dot >= 0f)
             // if (j == 256)
             {
-                // QuickColor col = new()
-                // {
-                //     RGBA = firstCol
-                // };
-                // col *= dot;
                 // pusher.DrawPinedaTriangle(tri, defaultCol);
                 // pusher.DrawBounds(tri, defaultCol);
                 var white = (new QuickColor(255, 255, 255, 255) * dot).RGBA;
+                // int normal = new QuickColor(curTri.Normal / new Vector3(2f, 2f, 1f) + new Vector3(0.5f, 0.5f, 0f)).RGBA;
                 pusher.DrawPinedaTriangleSIMD(curTri, white, pixelBuf, zBuf);
-                // pusher.DrawTriangle(tri, new QuickColor(255, 128, 0, 255).RGBA);
+                // pusher.DrawBounds(curTri, firstCol);
+                // pusher.DrawTriangle(curTri, new QuickColor(255, 128, 0, 255).RGBA);
             }
-            // j++;
+            j++;
         }
 
         timer.Stop();
-
-
-        Console.WriteLine($"[Paprika] Took: {timer.Elapsed.TotalMilliseconds}ms");
+        avg += timer.Elapsed.TotalMilliseconds;
+        ulong frameCount = 20;
+        if (args.Frame % frameCount == 0)
+        {
+            Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {args.Frame}");
+            avg = 0;
+        }
+        // Console.WriteLine(timer.Elapsed.TotalMilliseconds);
         timer.Reset();
     }
 }

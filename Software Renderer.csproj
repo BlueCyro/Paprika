@@ -6,8 +6,8 @@
     <RootNamespace>Software_Renderer</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
+    <!--SelfContained>true</SelfContained-->
+    <!--PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile-->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!--DocumentationFile>./Docs.xml</DocumentationFile-->
 

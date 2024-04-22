@@ -40,12 +40,13 @@ public interface IMeshAttribute
 
 
 
-
-
-public struct Vertex
+public struct Vertex(in Vector3 pos, in Vector3 normal, in Vector3 tangent, in Vector2 uv)
 {
-    public Vector3 Position;
-    public Vector3 Normal;
+    public Vector3 Position = pos;
+    public Vector3 Normal = normal;
+    public Vector3 Tangent = tangent;
+
+    public Vector2 UV = uv;
 }
 
 

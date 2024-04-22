@@ -30,9 +30,9 @@ public ref struct QuickColor
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public QuickColor(in Vector3 rgb)
     {
-        R = (byte)rgb.X;
-        G = (byte)rgb.Y;
-        B = (byte)rgb.Z;
+        R = (byte)(rgb.X * 255f);
+        G = (byte)(rgb.Y * 255f);
+        B = (byte)(rgb.Z * 255f);
         A = 255;
     }
 

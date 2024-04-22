@@ -96,5 +96,55 @@ public static class VectorHelpers
 
 
 
-    // public static void InterpolateBarycentric(in )
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void InterpolateBarycentric(in Vector3 one, in Vector3 two, in Vector3 three, in BigVec3 bary, out BigVec3 interpolated)
+    {
+        one.MulWide(bary.X, out BigVec3 oneMul);
+        two.MulWide(bary.Y, out BigVec3 twoMul);
+        three.MulWide(bary.Z, out BigVec3 threeMul);
+        interpolated = oneMul + twoMul + threeMul;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void InterpolateBarycentric(in Vector2 one, in Vector2 two, in Vector2 three, in BigVec3 bary, out BigVec2 interpolated)
+    {
+        one.MulWide(bary.X, out BigVec2 oneMul);
+        two.MulWide(bary.Y, out BigVec2 twoMul);
+        three.MulWide(bary.Z, out BigVec2 threeMul);
+        interpolated = oneMul + twoMul + threeMul;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void InterpolateBarycentric(in float one, in float two, in float three, in BigVec3 bary, out Vector<float> interpolated)
+    {
+        var oneMul = one * bary.X;
+        var twoMul = two * bary.Y;
+        var threeMul = three * bary.Z;
+        interpolated = oneMul + twoMul + threeMul;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void MulWide(in this Vector3 target, in Vector<float> multiplier, out BigVec3 multiplied)
+    {
+        multiplied = new(
+            new Vector<float>(target.X) * multiplier,
+            new Vector<float>(target.Y) * multiplier,
+            new Vector<float>(target.Z) * multiplier);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void MulWide(in this Vector2 target, in Vector<float> multiplier, out BigVec2 multiplied)
+    {
+        multiplied = new(
+            new Vector<float>(target.X) * multiplier,
+            new Vector<float>(target.Y) * multiplier);
+    }
 }

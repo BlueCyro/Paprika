@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Numerics;
+using BepuUtilities;
 
 
 namespace Paprika;
@@ -81,15 +82,15 @@ public ref struct QuickColor
 
 
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static BigVec3 operator *(in QuickColor left, in Vector<float> right)
-    {
-        Vector<float> RWide = new Vector<float>(left.R) * right;
-        Vector<float> GWide = new Vector<float>(left.G) * right;
-        Vector<float> BWide = new Vector<float>(left.B) * right;
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // public static Vector3Wide operator *(in QuickColor left, in Vector<float> right)
+    // {
+    //     Vector<float> RWide = new Vector<float>(left.R) * right;
+    //     Vector<float> GWide = new Vector<float>(left.G) * right;
+    //     Vector<float> BWide = new Vector<float>(left.B) * right;
 
-        return new(RWide, GWide, BWide);
-    }
+    //     return new(RWide, GWide, BWide);
+    // }
 
 
 

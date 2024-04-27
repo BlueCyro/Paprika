@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using BepuUtilities;
 
 
 namespace Paprika;
@@ -80,14 +81,6 @@ public static class VectorHelpers
 
 
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void GetTriBounds(in Triangle tri, in Vector2 min, in Vector2 max, out Vector2 bboxMin, out Vector2 bboxMax)
-    {
-        bboxMin = Vector2.Clamp(Vector2.Min(Vector2.Min(tri.v1, tri.v2), tri.v3), min, max);
-        bboxMax = Vector2.Clamp(Vector2.Max(Vector2.Max(tri.v1, tri.v2), tri.v3), min, max);
-    }
-
-
 
     public static QuickColor Lerp(in this QuickColor A, in QuickColor B, in float lerp)
     {
@@ -97,29 +90,29 @@ public static class VectorHelpers
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in Vector3 one, in Vector3 two, in Vector3 three, in BigVec3 bary, out BigVec3 interpolated)
+    public static void InterpolateBarycentric(in Vector3 one, in Vector3 two, in Vector3 three, in Vector3Wide bary, out Vector3Wide interpolated)
     {
-        one.MulWide(bary.X, out BigVec3 oneMul);
-        two.MulWide(bary.Y, out BigVec3 twoMul);
-        three.MulWide(bary.Z, out BigVec3 threeMul);
+        one.MulWide(bary.X, out Vector3Wide oneMul);
+        two.MulWide(bary.Y, out Vector3Wide twoMul);
+        three.MulWide(bary.Z, out Vector3Wide threeMul);
         interpolated = oneMul + twoMul + threeMul;
     }
 
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in Vector2 one, in Vector2 two, in Vector2 three, in BigVec3 bary, out BigVec2 interpolated)
+    public static void InterpolateBarycentric(in Vector2 one, in Vector2 two, in Vector2 three, in Vector3Wide bary, out Vector2Wide interpolated)
     {
-        one.MulWide(bary.X, out BigVec2 oneMul);
-        two.MulWide(bary.Y, out BigVec2 twoMul);
-        three.MulWide(bary.Z, out BigVec2 threeMul);
+        one.MulWide(bary.X, out Vector2Wide oneMul);
+        two.MulWide(bary.Y, out Vector2Wide twoMul);
+        three.MulWide(bary.Z, out Vector2Wide threeMul);
         interpolated = oneMul + twoMul + threeMul;
     }
 
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in float one, in float two, in float three, in BigVec3 bary, out Vector<float> interpolated)
+    public static void InterpolateBarycentric(in float one, in float two, in float three, in Vector3Wide bary, out Vector<float> interpolated)
     {
         var oneMul = one * bary.X;
         var twoMul = two * bary.Y;
@@ -130,21 +123,20 @@ public static class VectorHelpers
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void MulWide(in this Vector3 target, in Vector<float> multiplier, out BigVec3 multiplied)
+    public static void MulWide(in this Vector3 target, in Vector<float> multiplier, out Vector3Wide multiplied)
     {
-        multiplied = new(
-            new Vector<float>(target.X) * multiplier,
-            new Vector<float>(target.Y) * multiplier,
-            new Vector<float>(target.Z) * multiplier);
+        
+        multiplied.X = new Vector<float>(target.X) * multiplier;
+        multiplied.Y = new Vector<float>(target.Y) * multiplier;
+        multiplied.Z = new Vector<float>(target.Z) * multiplier;
     }
 
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void MulWide(in this Vector2 target, in Vector<float> multiplier, out BigVec2 multiplied)
+    public static void MulWide(in this Vector2 target, in Vector<float> multiplier, out Vector2Wide multiplied)
     {
-        multiplied = new(
-            new Vector<float>(target.X) * multiplier,
-            new Vector<float>(target.Y) * multiplier);
+        multiplied.X = new Vector<float>(target.X) * multiplier;
+        multiplied.Y = new Vector<float>(target.Y) * multiplier;
     }
 }

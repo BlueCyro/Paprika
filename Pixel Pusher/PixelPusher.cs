@@ -1,78 +1,70 @@
-
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
-using Silk.NET.Maths;
+using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
 
 namespace Paprika;
 
+using static VectorHelpers;
+
 public partial class PixelPusher
 {
-    public Vector64<int> Size
-    {
-        get
-        {
-            return size;
-        }
+    public Size2D FrameBufferSize;
 
-        private set
-        {
-            size = value;
-            SizeFloat = Vector64.Create<float>([value[0], value[1]]);
-            SizeVec2 = new(value[0], value[1]);
-            SizeVec4 = new(value[0], value[1], value[0], value[1]);
-            TotalLength = value[0] * value[1];
-        }
-    }
-
-    public Vector64<float> SizeFloat { get; private set; }
-    public Vector2 SizeVec2 { get; private set; }
-    public Vector4 SizeVec4 { get; private set; }
-    public int TotalLength { get; private set; }
-    private Vector64<int> size;
     private ulong frame;
 
-    public int[] PixelBuffer => bufferSwap ? pixelBuffer2 : pixelBuffer1;
-    public Span<byte> PixelBufferBytes => MemoryMarshal.Cast<int, byte>(PixelBuffer.AsSpan());
+    public RenderBuffer<int> PixelBuffer => bufferSwap ? pixelBuffer2 : pixelBuffer1;
+    public Span<byte> PixelBufferBytes => MemoryMarshal.Cast<int, byte>(PixelBuffer.Buffer.AsSpan());
 
-    public event EventHandler<RenderEventArgs> OnUpdate;
+    // public event EventHandler<RenderEventArgs> OnUpdate;
 
 
     private GL gl;
     private Shader shader;
     private IWindow window;
+    private IInputContext input;
     private Texture pixelView;
     private BufferObject<uint> elementBufferObject;
     private BufferObject<float> vertexBufferObject;
     private VertexArrayObject<float, uint> vertexArrayObject;
 
+    public readonly Camera MainCamera;
+    public readonly Matrix4x4 ViewportMatrix;
+    private double avg;
+
 
 
     private bool bufferSwap = false;
-    private int[] pixelBuffer1;
-    private int[] pixelBuffer2;
-    public readonly float[] ZBuffer;
+    private RenderBuffer<int> pixelBuffer1;
+    private RenderBuffer<int> pixelBuffer2;
+    public readonly RenderBuffer<float> ZBuffer;
 
 
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    public PixelPusher(string name, Vector64<int> size)
+    public PixelPusher(string name, int width, int height)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     {
+        FrameBufferSize = new(width, height);
         var opts = WindowOptions.Default;
         opts.Title = name;
-        opts.Size = new Vector2D<int>(size[0], size[1]);
-        // opts.VSync = false;
+        opts.Size = FrameBufferSize;
         window = Window.Create(opts);
-        Size = size;
 
-        pixelBuffer1 = new int[size[0] * size[1]];
-        pixelBuffer2 = new int[pixelBuffer1.Length];
-        ZBuffer = new float[pixelBuffer1.Length];
+        MainCamera = new Camera(0.1f, 100f, 60f, new(width, height), Vector3.Zero, Quaternion.Identity, true);
+        ViewportMatrix =
+            Matrix4x4.CreateTranslation(1, 1, 0) *
+            Matrix4x4.CreateScale(0.5f * FrameBufferSize.Width, 0.5f * FrameBufferSize.Height, 1);
+
+
+        pixelBuffer1 = new(width, height);
+        pixelBuffer2 = new(width, height);
+        ZBuffer = new(width, height);
+
 
         window.Load += Bootstrap;
         window.Render += Render;
@@ -86,11 +78,11 @@ public partial class PixelPusher
 
 
 
-    private void ResizeBuffer()
-    {
-        pixelBuffer1 = new int[Size[0] * Size[1]];
-        pixelBuffer2 = new int[pixelBuffer1.Length];
-    }
+    // private void ResizeBuffer()
+    // {
+    //     pixelBuffer1 = new int[FrameBufferSize.Length1D];
+    //     pixelBuffer2 = new int[FrameBufferSize.Length1D];
+    // }
 
 
 
@@ -105,6 +97,10 @@ public partial class PixelPusher
     private void Bootstrap()
     {
         gl = window.CreateOpenGL();
+        input = window.CreateInput();
+
+        input.Mice[0].MouseMove += MouseMove;
+
         var col = System.Drawing.Color.BlueViolet;
         gl.ClearColor(col); // Clear to a specified color
 
@@ -119,11 +115,11 @@ public partial class PixelPusher
 
 
         shader = new(gl, Shader.DefaultVertex, Shader.DefaultFrag);
-        pixelView = new(gl, PixelBufferBytes, (uint)Size[0], (uint)Size[1]);
+        pixelView = new(gl, PixelBufferBytes, FrameBufferSize.UWidth, FrameBufferSize.UHeight);
     }
 
 
-
+    
     private unsafe void Render(double delta)
     {
         vertexBufferObject.Bind();
@@ -138,23 +134,46 @@ public partial class PixelPusher
 
 
 
-    private void Update(double delta)
+    public void MouseMove(IMouse mouse, Vector2 delta)
     {
-        Array.Clear(PixelBuffer);
-        Array.Fill(ZBuffer, float.MaxValue);
-        OnUpdate?.Invoke(this, new(delta, frame++));
-        PushPixels();
+        MainCamera.Rotation = Quaternion.CreateFromYawPitchRoll(-delta.X / FrameBufferSize.WidthSingle * MathF.Tau, delta.Y / FrameBufferSize.HeightSingle * MathF.PI - (MathF.PI / 2f), 0f);
     }
 
 
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void SetPixelUnsafe(in int data, in float x, in float y)
+    private void Update(double delta)
     {
-        fixed (int* ptr = PixelBuffer)
-        {
-            *(ptr + (int)x + (int)y * size[0]) = data;
-        }
+        var board = input.Keyboards[0];
+        float shiftMod = 1f;
+
+        if (board.IsKeyPressed(Key.ShiftLeft))
+            shiftMod = 5f;
+        
+        if (board.IsKeyPressed(Key.Space))
+            MainCamera.Position += MainCamera.Up * shiftMod * (float)delta;
+        
+        if (board.IsKeyPressed(Key.E))
+            MainCamera.Position += -MainCamera.Up * shiftMod * (float)delta;
+        
+
+        if (board.IsKeyPressed(Key.W))
+            MainCamera.Position += MainCamera.Forward * shiftMod * (float)delta;
+        
+        if (board.IsKeyPressed(Key.S))
+            MainCamera.Position += -MainCamera.Forward * shiftMod * (float)delta;
+
+        if (board.IsKeyPressed(Key.A))
+            MainCamera.Position += MainCamera.Right * shiftMod * (float)delta;
+
+        if (board.IsKeyPressed(Key.D))
+            MainCamera.Position += -MainCamera.Right * shiftMod * (float)delta;
+
+        
+
+        Array.Clear(PixelBuffer);
+        Array.Fill(ZBuffer, float.MaxValue);
+        DoRender(frame++);
+        PushPixels();
     }
 
 
@@ -162,7 +181,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixel(in int data, in int x, in int y)
     {
-        SetPixel(data, x + y * size[0]);
+        SetPixel(data, x + y * FrameBufferSize.Width);
     }
 
 
@@ -171,7 +190,7 @@ public partial class PixelPusher
     public void SetPixel(in int data, in int x, in int y, in float depth = float.MaxValue)
     {
         // int index = Math.Clamp(x + y * size[0], 0, PixelBuffer.Length - 1);
-        int index = x + y * size[0];
+        int index = x + y * FrameBufferSize.Width;
         if (ZBuffer[index] <= depth)
         {
             SetPixelUnsafe(data, index);
@@ -184,7 +203,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixel(in int data, in float x, in float y)
     {
-        SetPixel(data, (int)x + (int)y * size[0]);
+        SetPixel(data, (int)x + (int)y * FrameBufferSize.Width);
     }
 
 
@@ -192,7 +211,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixel(in int data, in int index)
     {
-        PixelBuffer[Math.Clamp(index, 0, PixelBuffer.Length - 1)] = data;
+        PixelBuffer.Buffer[Math.Clamp(index, 0, FrameBufferSize.Length1D - 1)] = data;
     }
 
 
@@ -200,7 +219,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixelZ(in float data, in int index)
     {
-        SetPixelZUnsafe(data, Math.Clamp(index, 0, ZBuffer.Length - 1));
+        SetPixelZUnsafe(data, Math.Clamp(index, 0, ZBuffer.Buffer.Length - 1));
     }
 
 
@@ -208,7 +227,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixelUnsafe(in int data, in int index)
     {
-        PixelBuffer[index] = data;
+        PixelBuffer.Buffer[index] = data;
     }
 
 
@@ -238,8 +257,67 @@ public partial class PixelPusher
 
     public void PushPixels()
     {
-        pixelView.Update(PixelBufferBytes, (uint)Size[0], (uint)Size[1]);
+        pixelView.Update(PixelBufferBytes, FrameBufferSize.UWidth, FrameBufferSize.UHeight);
         bufferSwap = !bufferSwap;
+    }
+
+
+
+    public void DoRender(ulong frame)
+    {
+        var pusher = this;   
+        Stopwatch timer = Program.Timer;
+        timer.Start();
+
+        Triangle[] triArray = Program.Uploaded;
+        
+        Span<int> pixelBuf = pusher.PixelBuffer.Buffer.AsSpan();
+        Span<float> zBuf = pusher.ZBuffer.Buffer.AsSpan();
+        
+
+        Matrix4x4 mvpMatrix = pusher.MainCamera.ViewProjectionMatrix * pusher.ViewportMatrix;
+
+
+        for (int i = 0; i < triArray.Length; i++)
+        {
+            Triangle curTri = triArray[i];
+            
+            Vector3 diff = pusher.MainCamera.Position - curTri.Center;
+            
+
+            float dot = Vector3.Dot(curTri.Normal, Vector3.Normalize(diff));
+            bool condition = dot >= 0f;
+            
+
+            // if (i == 256)
+            if (!condition)
+                continue;
+            
+
+
+            curTri.Transform(mvpMatrix);
+
+            // curTri.PerspectiveProject(out var _);
+
+
+
+            // pusher.DrawBounds(tri, defaultCol);
+            var white = (new QuickColor(Program.firstCol) * dot).RGBA;
+            pusher.DrawPinedaTriangleSIMD(ref curTri, white, pixelBuf, zBuf);
+            // pusher.DrawBounds(curTri, firstCol);
+        }
+
+        timer.Stop();
+        avg += timer.Elapsed.TotalMilliseconds;
+        ulong frameCount = 20;
+        if (frame % frameCount == 0)
+        {
+            // Console.WriteLine(timer.Elapsed.TotalMilliseconds);
+            Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}");
+            avg = 0;
+        }
+        // Console.WriteLine(timer.Elapsed.TotalMilliseconds);
+        timer.Reset();
     }
 }
 

@@ -22,4 +22,7 @@ public readonly ref struct Bounds2D(Vector2 min, Vector2 max)
 
     [FieldOffset(0)]
     public readonly Vector4 BoundsVec4;
+
+    [FieldOffset(16)]
+    public readonly Size2D Size;
 }

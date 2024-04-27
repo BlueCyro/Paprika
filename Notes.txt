@@ -94,4 +94,20 @@ Pixel pusher is mostly okay, but it needs a few more things.
         - Edge function bases
         ? Maybe make it generic for 2D and 3D?
 
-* How is a 
+
+
+# How should a camera be defined?
+
+* Defines view and projection matrices
+    - Resolution, FOV, Position, Rotation
+* What else should it define?
+    * Perhaps instead leave resolution to render buffer?
+        - Render buffer is just a big array of value types that hold pixels
+        - Dumb object, doesn't need lots of complexity
+        - Could literally just be generic struct that defines width, height, and array of given value type
+    * Generic? Should it define a rendering context by which to render in?
+        + This could mean that contexts are modular
+        + Rendering contexts (different rasterizers, stylized, raytracers, etc.) could be defined per-camera
+        ? What is a context?
+            * Rendering context defines method by which the scene is rendered
+            * Does not contain scene itself, only changes how it is viewed

@@ -1,6 +1,6 @@
 # 🌶️🧂 Paprika: Software rendering, with a bit of kick
 
-This is an attempt to make a fast, simple, and semi-practical software renderer for fun. This project is an exercise in optimization and learning and is an interesting challenge in optimization and program structuring. As such, this repo is likely to be a mess for a while, but feel free to stick around and watch it blow up!
+This is an attempt to make a fast, simple, and semi-practical software renderer for fun. This project is a an interesting learning exercise in optimization and program structuring. As such, this repo is likely to be a mess for a while, but feel free to stick around and watch it blow up!
 
 I want to see just how far I can push my CPU into being what it always dreamed of: A GPU. In C# no less!
 

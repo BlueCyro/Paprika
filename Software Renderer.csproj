@@ -9,6 +9,8 @@
     <!--SelfContained>true</SelfContained-->
     <!--PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile-->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <!--TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops-->
     <!--DocumentationFile>./Docs.xml</DocumentationFile-->
 
     <Version>1.0.0</Version>

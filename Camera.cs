@@ -116,31 +116,3 @@ public class Camera(float nearClip, float farClip, float fov, Size2D resolution,
         _viewMatrix = Matrix4x4.CreateLookAt(position, position + Forward, Up);
     }
 }
-
-
-
-public interface IRenderBuffer
-{
-    public Size2D Size { get; }
-    public Type BufferType { get; }
-}
-
-
-
-public readonly struct RenderBuffer<T>(int width, int height, T[]? buffer = null) : IRenderBuffer
-{
-    public T this[int index]
-    {
-        get => Buffer[index];
-        set => Buffer[index] = value;
-    }
-
-
-    public readonly Size2D Size { get; init; } = new(width, height);
-    public readonly T[] Buffer = buffer ?? new T[width * height];
-    public readonly Type BufferType => typeof(T);
-
-
-    public static implicit operator T[](in RenderBuffer<T> buffer) => buffer.Buffer;
-
-}

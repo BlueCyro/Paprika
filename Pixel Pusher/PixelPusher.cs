@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using BepuUtilities;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
@@ -16,9 +17,10 @@ public partial class PixelPusher
     public Size2D FrameBufferSize;
 
     private ulong frame;
+    private int renderedTris;
 
     public RenderBuffer<int> PixelBuffer => bufferSwap ? pixelBuffer2 : pixelBuffer1;
-    public Span<byte> PixelBufferBytes => MemoryMarshal.Cast<int, byte>(PixelBuffer.Buffer.AsSpan());
+    public unsafe Span<byte> PixelBufferBytes => new(PixelBuffer.Buffer, (int)PixelBuffer.Buffer.LengthBytes);
 
     // public event EventHandler<RenderEventArgs> OnUpdate;
 
@@ -170,9 +172,25 @@ public partial class PixelPusher
 
         
 
-        Array.Clear(PixelBuffer);
-        Array.Fill(ZBuffer, float.MaxValue);
-        DoRender(frame++);
+        PixelBuffer.Buffer.Clear();
+        ZBuffer.Buffer.Fill(float.MaxValue);
+        
+        Stopwatch timer = Program.Timer;
+        timer.Start();
+
+        Pusher_DoRender();
+        
+        timer.Stop();
+        avg += timer.Elapsed.TotalMilliseconds;
+        ulong frameCount = 20;
+        if (frame++ % frameCount == 0)
+        {
+            Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}, Tris: {renderedTris}");
+            avg = 0;
+        }
+        timer.Reset();
+        renderedTris = 0;
+
         PushPixels();
     }
 
@@ -211,7 +229,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixel(in int data, in int index)
     {
-        PixelBuffer.Buffer[Math.Clamp(index, 0, FrameBufferSize.Length1D - 1)] = data;
+        PixelBuffer.Buffer.Span[Math.Clamp(index, 0, FrameBufferSize.Length1D - 1)] = data;
     }
 
 
@@ -227,7 +245,7 @@ public partial class PixelPusher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixelUnsafe(in int data, in int index)
     {
-        PixelBuffer.Buffer[index] = data;
+        PixelBuffer.Buffer.Span[index] = data;
     }
 
 
@@ -255,69 +273,109 @@ public partial class PixelPusher
 
 
 
-    public void PushPixels()
+    public unsafe void PushPixels()
     {
-        pixelView.Update(PixelBufferBytes, FrameBufferSize.UWidth, FrameBufferSize.UHeight);
+        pixelView.Update(PixelBuffer.Buffer, FrameBufferSize.UWidth, FrameBufferSize.UHeight);
         bufferSwap = !bufferSwap;
     }
 
 
 
-    public void DoRender(ulong frame)
+    public void Pusher_DoRender()
     {
-        var pusher = this;   
-        Stopwatch timer = Program.Timer;
-        timer.Start();
-
-        Triangle[] triArray = Program.Uploaded;
+        DumbBuffer<TriangleWide> triArray = Program.WideUploaded;
         
-        Span<int> pixelBuf = pusher.PixelBuffer.Buffer.AsSpan();
-        Span<float> zBuf = pusher.ZBuffer.Buffer.AsSpan();
+        Matrix4x4 mvpMatrix = MainCamera.ViewProjectionMatrix * ViewportMatrix; // Camera view projection -> viewport
+        Matrix4x4Wide.Broadcast(mvpMatrix, out Matrix4x4Wide mvpMatrixWide); // Broadcast to wide matrix for triangle transformation
+        Vector3Wide wideCameraPos = Vector3Wide.Broadcast(MainCamera.Position); // Broadcast to wide camera pos
+
         
+        Vector4Wide.Broadcast(new(FrameBufferSize.WidthSingle - 1, FrameBufferSize.HeightSingle - 1, FrameBufferSize.WidthSingle - 1, FrameBufferSize.HeightSingle - 1), out Vector4Wide frameBounds);
+        Vector<float> vecWidth = new Vector<float>(Vector<float>.Count);
+        Vector<float> vecWidthRecip = MathHelper.FastReciprocal(vecWidth);
+        Vector4Wide zero = new();
 
-        Matrix4x4 mvpMatrix = pusher.MainCamera.ViewProjectionMatrix * pusher.ViewportMatrix;
+        // Lotsa guys
+        TriangleWide transformed;
+        Vector<float> dots;
+        Vector3Wide center;
+        Vector3Wide normal;
+        Vector3Wide diff;
+        Vector4Wide bbox;
+        Vector3Wide oldZWide;
+        Triangle narrow;
+        float dot;
+        int color;
 
 
-        for (int i = 0; i < triArray.Length; i++)
+        Vector4 bboxNarrow;
+        Vector3 oldZ;
+        
+        
+        unsafe
         {
-            Triangle curTri = triArray[i];
+            for (int i = 0; i < triArray.Length; i++)
+            {
+                TriangleWide* curTri = triArray + i;
+                
+                TriangleWide.GetCenter(*curTri, out center);
+                TriangleWide.GetNormal(*curTri, out normal);
+
+                Vector3Wide.Subtract(wideCameraPos, center, out diff);
+                Vector3Wide.Dot(normal, Vector3Wide.Normalize(diff), out dots);
+
+                if (Vector.LessThanOrEqualAll(dots, Vector<float>.Zero))
+                    continue;
             
-            Vector3 diff = pusher.MainCamera.Position - curTri.Center;
-            
+                TriangleWide.Transform(*curTri, mvpMatrixWide, out transformed);
+                TriangleWide.ZDivide(transformed, out oldZWide, out transformed);
+                // TriangleWide.GetBounds(transformed, out Vector3Wide bboxMinWide, out Vector3Wide bboxMaxWide);
+                TriangleWide.Get2DBounds(transformed, out bbox);
 
-            float dot = Vector3.Dot(curTri.Normal, Vector3.Normalize(diff));
-            bool condition = dot >= 0f;
-            
-
-            // if (i == 256)
-            if (!condition)
-                continue;
-            
-
-
-            curTri.Transform(mvpMatrix);
-
-            // curTri.PerspectiveProject(out var _);
+                // Console.WriteLine($"V4 bbox: {result}");
+                // bool bboxCheck = 
+                //     Vector.GreaterThanOrEqualAll(bbox.X, zero.X) &&
+                //     Vector.GreaterThanOrEqualAll(bbox.Y, zero.Y) &&
+                //     Vector.LessThanOrEqualAll(bbox.Z, frameBounds.Z) &&
+                //     Vector.LessThanOrEqualAll(bbox.W, frameBounds.W);
 
 
+                // if (!bboxCheck)
+                //     continue;
 
-            // pusher.DrawBounds(tri, defaultCol);
-            var white = (new QuickColor(Program.firstCol) * dot).RGBA;
-            pusher.DrawPinedaTriangleSIMD(ref curTri, white, pixelBuf, zBuf);
-            // pusher.DrawBounds(curTri, firstCol);
+                // Vector4Wide.Scale(bbox, vecWidthRecip, out bbox);
+                // VectorHelpers.AlignWidth(bbox, out bbox);
+                // Vector4Wide.Scale(bbox, vecWidth, out bbox);
+
+
+                Vector4Wide.Max(bbox, zero, out Vector4Wide result);
+                Vector4Wide.Min(result, frameBounds, out result);
+                // bboxMinWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.X), wideFrameWidth);
+                // bboxMinWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.Y), wideFrameHeight);
+                // bboxMaxWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.X), wideFrameWidth);
+                // bboxMaxWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.Y), wideFrameHeight);
+
+
+                for (int j = 0; j < Vector<float>.Count; j++)
+                {
+                    // if (j != 7 || i != 0)
+                    //     continue;
+
+                    dot = dots[j];
+
+                    // if (dot <= 0f)
+                    //     continue;
+
+                    TriangleWide.ReadSlot(ref transformed, j, out narrow);
+                    QuickColor.PackedFromVector3(Vector3.One * dot, out color);
+                    Vector4Wide.ReadSlot(ref result, j, out bboxNarrow);
+                    Vector3Wide.ReadSlot(ref oldZWide, j, out oldZ);
+
+                    DrawPinedaTriangleSIMD(ref narrow, color, PixelBuffer.Buffer, ZBuffer.Buffer, bboxNarrow, oldZ);
+                    renderedTris++;
+                }
+            }
         }
-
-        timer.Stop();
-        avg += timer.Elapsed.TotalMilliseconds;
-        ulong frameCount = 20;
-        if (frame % frameCount == 0)
-        {
-            // Console.WriteLine(timer.Elapsed.TotalMilliseconds);
-            Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}");
-            avg = 0;
-        }
-        // Console.WriteLine(timer.Elapsed.TotalMilliseconds);
-        timer.Reset();
     }
 }
 

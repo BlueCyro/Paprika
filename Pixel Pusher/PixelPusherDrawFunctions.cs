@@ -11,28 +11,28 @@ public partial class PixelPusher
 {
     public static readonly Vector<int> FullByte = new(255);
     public static readonly Vector<int> zeroInt = new();
-    public static readonly int allBits = unchecked((int)uint.MaxValue);
+    public static readonly int AllBits = unchecked((int)uint.MaxValue);
     public static readonly Vector3 Red = new(1f, 0f, 0f);
     public static readonly Vector3 Green = new(0f, 1f, 0f);
     public static readonly Vector3 Blue = new(0f, 0f, 1f);
 
 
 
-    // public void DrawLine(in Vector2 from, in Vector2 to, in int col)
-    // {
-    //     var diff = to - from;
-    //     var abs = Vector2.Abs(diff);
-    //     float step = MathF.Max(abs.X, abs.Y);
+    public void DrawLine(in Vector3 from, in Vector3 to, in int col)
+    {
+        var diff = to - from;
+        var abs = Vector3.Abs(diff);
+        float step = MathF.Max(abs.X, abs.Y);
         
-    //     diff /= step;
-    //     var start = from;
+        diff /= step;
+        var start = from;
 
-    //     for (int i = 0; i < step; i++)
-    //     {
-    //         SetPixel(col, start.X, start.Y);
-    //         start += diff;
-    //     }
-    // }
+        for (int i = 0; i < step; i++)
+        {
+            SetPixel(col, start.X, start.Y);
+            start += diff;
+        }
+    }
 
 
 
@@ -50,17 +50,14 @@ public partial class PixelPusher
 
 
 
-    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    // public void DrawBounds(in Triangle tri, in int col)
-    // {
-    //     VectorHelpers.GetTriBounds(tri, Vector2.Zero, FrameBufferSize - Vector2.One, out var bboxMin, out var bboxMax);
-    //     Bounds2D bounds = new(bboxMin, bboxMax);
-
-    //     DrawLine(bounds.Min, new(bounds.Min.X, bounds.Max.Y), col);
-    //     DrawLine(bounds.Min, new(bounds.Max.X, bounds.Min.Y), col);
-    //     DrawLine(bounds.Max, new(bounds.Min.X, bounds.Max.Y), col);
-    //     DrawLine(bounds.Max, new(bounds.Max.X, bounds.Min.Y), col);
-    // }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DrawBounds(Vector3 min, Vector3 max, in int col)
+    {
+        DrawLine(min, new(min.X, max.Y, 0), col);
+        DrawLine(min, new(max.X, min.Y, 0), col);
+        DrawLine(max, new(min.X, max.Y, 0), col);
+        DrawLine(max, new(max.X, min.Y, 0), col);
+    }
 
 
 
@@ -121,15 +118,95 @@ public partial class PixelPusher
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawPinedaTriangleSIMD(ref Triangle tri, in int col, in Span<int> bufSlice, in Span<float> zBufSlice)
+    public unsafe void DrawPinedaTriangleSIMD(
+        ref Triangle tri,
+        in int col,
+        DumbBuffer<int> bufStart,
+        DumbBuffer<float> zBufStart,
+        in Vector4 bbox,
+        in Vector3 oldZ)
     {
-        tri.ZDivide(out Vector3 oldZ);
-
-        
         Vector<int> wideCol = new(col);
-        tri.GetBounds(out var bboxMin, out var bboxMax);
-        // Bounds2D triBounds = new(bboxMin, bboxMax);
         EdgesVectorized edges = new(tri.A, tri.B, tri.C);
+
+        int minX = (int)bbox.X;
+        int minY = (int)bbox.Y;
+        int maxX = (int)bbox.Z;
+        int maxY = (int)bbox.W;
+        int frameWidth = FrameBufferSize.Width;
+        // int bboxWidth = maxX - minX;
+        int x = 0;
+        
+        // Span<int> colStash = stackalloc int[bboxWidth + 1];
+        // Span<float> zStash = stackalloc float[bboxWidth + 1];
+        // int* colStart = (int*)Unsafe.AsPointer(ref colStash[0]);
+        // float* zStart = (float*)Unsafe.AsPointer(ref zStash[0]);
+        // int i = 0;
+
+        // FillRect(bbox);
+        for (int y = maxY; y > minY; y--)
+        {
+            int row = y * frameWidth;
+            // Unsafe.CopyBlock(colStart, bufStart + (minX + minY * frameWidth), (uint)bboxWidth * sizeof(int));
+            // Unsafe.CopyBlock(zStart, zBufStart + (minX + minY * frameWidth), (uint)bboxWidth * sizeof(float));
+
+            // for (int i = bboxWidth; i > 0; i -= Vector<int>.Count)
+            // i = 0;
+            for (x = maxX; x > minX; x -= Vector<int>.Count)
+            {
+                int vecStart = x - Vector<int>.Count + row;
+                int vecFloatStart = x - Vector<float>.Count + row;
+                
+                int* colStart = bufStart + vecStart;
+                float* zStart = zBufStart + vecFloatStart;
+
+
+
+                Vector<int> bufVec = Vector.Load(colStart);
+                Vector<float> bufVecZ = Vector.Load(zStart);
+
+
+                edges.IsInside(x, y, out Vector3Wide eN);
+
+                RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, eN, out Vector<float> bigDepth);
+                Vector<int> depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
+
+
+                Vector<int> mask =
+                    Vector.GreaterThanOrEqual(eN.X, Vector<float>.Zero) &
+                    Vector.GreaterThanOrEqual(eN.Y, Vector<float>.Zero) &
+                    Vector.GreaterThanOrEqual(eN.Z, Vector<float>.Zero);
+
+                Vector<int> colResult = Vector.ConditionalSelect(mask & depthMask, wideCol, bufVec);
+                Vector<float> zResult = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
+                
+                *(Vector<int>*)colStart = colResult;
+                *(Vector<float>*)zStart = zResult;
+                // Vector.StoreUnsafe(maskedCol, ref *colOffset);
+                // Vector.StoreUnsafe(maskedZ, ref *zOffset);
+
+                // i++;
+            }
+
+            // Unsafe.CopyBlock(bufStart + (minX + minY * frameWidth), colStart, (uint)bboxWidth * sizeof(int));
+            // Unsafe.CopyBlock(zBufStart + (minX + minY * frameWidth), colStart, (uint)bboxWidth * sizeof(float));
+            // Console.WriteLine($"Rounded: {maxX - x}");
+            // Console.WriteLine($"Width: {Math.Ceiling(FrameBufferSize.WidthSingle / Vector<int>.Count) * Vector<int>.Count}");
+            // rowSlice.CopyTo(rowBuf);
+        }
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void DrawPinedaTriangleBundle(ref TriangleWide triBundle, in Span<int> bufSlice, in Span<float> zBufSlicem, in Vector3Wide oldZ)
+    {
+
+        QuickColor col = new(0, 255, 0, 255);
+        QuickColor boundsCol = new(255, 127, 0, 255);
+        Vector<int> wideCol = new(boundsCol.RGBA);
+        TriangleWide.GetTotalBounds(triBundle, out Vector3 bboxMin, out Vector3 bboxMax);
+        EdgesBundled edges = new(triBundle);
 
 
         int minX = Math.Clamp((int)bboxMin.X, 0, FrameBufferSize.Width - 1);
@@ -138,27 +215,28 @@ public partial class PixelPusher
         int maxY = Math.Clamp((int)bboxMax.Y, 0, FrameBufferSize.Height - 1);
         
 
+        DrawBounds(new(minX, minY, 0), new(maxX, maxY, 0), col.RGBA);
         int width = FrameBufferSize.Width;
-        var zeroVec = EdgesVectorized.Zero;
 
-        for (int x = maxX; x > minX; x -= Vector<int>.Count)
+        for (int x = maxX - 1; x > minX; x--)
         {
-            for (int y = maxY; y > minY; y--)
+            for (int y = maxY - 1; y > minY; y--)
             {
                 edges.IsInside(x, y, out Vector3Wide eN, out _);
 
 
-                int vecStart = x - Vector<int>.Count + y * width;
-                int vecFloatStart = x - Vector<float>.Count + y * width;
-                ref int first = ref bufSlice[vecStart];
-                ref float firstZ = ref zBufSlice[vecFloatStart];
+                int vecStart = x + y * width;
+                // int vecStart = x - Vector<int>.Count + y * width;
+                // int vecFloatStart = x - Vector<float>.Count + y * width;
+                // ref int first = ref bufSlice[vecStart];
+                // ref float firstZ = ref zBufSlice[vecFloatStart];
 
-                Vector<int> bufVec = Vector.LoadUnsafe(ref first);
-                Vector<float> bufVecZ = Vector.LoadUnsafe(ref firstZ);
+                // Vector<int> bufVec = Vector.LoadUnsafe(ref first);
+                // Vector<float> bufVecZ = Vector.LoadUnsafe(ref firstZ);
 
                 // VectorHelpers.InterpolateBarycentric(Red, Green, Blue, eN, out BigVec3 bigCol);
                 // VectorHelpers.InterpolateBarycentric(tri.uv1, tri.uv2, tri.uv3, eN, out BigVec2 bigUV);
-                VectorHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, eN, out Vector<float> bigDepth);
+                // RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, eN, out Vector<float> bigDepth);
 
 
                 // bigUV *= 255f;
@@ -166,22 +244,21 @@ public partial class PixelPusher
                 // Vector<int> wideInterp = FullByte << 24 | zeroInt << 16 | GWide << 8 | RWide;
 
 
-                var depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
+                // var depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
 
 
                 var mask =
-                    Vector.GreaterThanOrEqual(eN.X, zeroVec) &
-                    Vector.GreaterThanOrEqual(eN.Y, zeroVec) &
-                    Vector.GreaterThanOrEqual(eN.Z, zeroVec);
+                    Vector.GreaterThanOrEqualAny(eN.X, Vector<float>.Zero) &&
+                    Vector.GreaterThanOrEqualAny(eN.Y, Vector<float>.Zero) &&
+                    Vector.GreaterThanOrEqualAny(eN.Z, Vector<float>.Zero);
 
 
-                Vector<int> maskedCol = Vector.ConditionalSelect(mask & depthMask, wideCol, bufVec);
-                Vector<float> maskedZ = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
-                maskedCol.StoreUnsafe(ref first);
-                maskedZ.StoreUnsafe(ref firstZ);
-
+                // Vector<int> maskedCol = Vector.ConditionalSelect(mask, wideCol, bufVec);
+                // Vector<float> maskedZ = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
+                // maskedCol.StoreUnsafe(ref first);
+                // maskedZ.StoreUnsafe(ref firstZ);
+                bufSlice[vecStart] = mask ? col.RGBA : 0;
                 // FillRect(new(x - Vector<int>.Count, y - 1), new(x, y), x / Vector<int>.Count % 2 == 0 ? new QuickColor(128, 0, 0, 255).RGBA : new QuickColor(0, 128, 0, 255).RGBA);
-
             }
 
             // rowSlice.CopyTo(rowBuf);
@@ -190,13 +267,13 @@ public partial class PixelPusher
 
 
 
-    public void FillRect(in Vector2 min, in Vector2 max, in int color)
+    public void FillRect(in Vector4 bbox)
     {
-        for (int y = (int)max.Y; y > min.Y; y--)
+        for (int y = (int)bbox.W; y > bbox.Y; y--)
         {
-            for (int x = (int)max.X; x > min.X; x--)
+            for (int x = (int)bbox.Z - 1; x > bbox.X; x--)
             {
-                SetPixel(color, x, y);
+                SetPixel(x / Vector<int>.Count % 2 == 0 ? new QuickColor(128, 0, 0, 255).RGBA : new QuickColor(0, 128, 0, 255).RGBA, x, y);
             }
         }
     }

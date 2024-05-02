@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using BepuUtilities;
 
 
@@ -9,6 +10,9 @@ public static class VectorHelpers
 {
     public const float RAD2DEG = 180f / MathF.PI;
     public const float DEG2RAD = MathF.PI / 180f;
+    public static readonly Vector<float> OneHalf = Vector<float>.One / 2f;
+    public static readonly Vector<float> OneThird = new(1f / 3f);
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2 Swap(in this Vector2 target)
@@ -82,43 +86,10 @@ public static class VectorHelpers
 
 
 
-    public static QuickColor Lerp(in this QuickColor A, in QuickColor B, in float lerp)
-    {
-        return A * (1 - lerp) + B * lerp;
-    }
-
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in Vector3 one, in Vector3 two, in Vector3 three, in Vector3Wide bary, out Vector3Wide interpolated)
-    {
-        one.MulWide(bary.X, out Vector3Wide oneMul);
-        two.MulWide(bary.Y, out Vector3Wide twoMul);
-        three.MulWide(bary.Z, out Vector3Wide threeMul);
-        interpolated = oneMul + twoMul + threeMul;
-    }
-
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in Vector2 one, in Vector2 two, in Vector2 three, in Vector3Wide bary, out Vector2Wide interpolated)
-    {
-        one.MulWide(bary.X, out Vector2Wide oneMul);
-        two.MulWide(bary.Y, out Vector2Wide twoMul);
-        three.MulWide(bary.Z, out Vector2Wide threeMul);
-        interpolated = oneMul + twoMul + threeMul;
-    }
-
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in float one, in float two, in float three, in Vector3Wide bary, out Vector<float> interpolated)
-    {
-        var oneMul = one * bary.X;
-        var twoMul = two * bary.Y;
-        var threeMul = three * bary.Z;
-        interpolated = oneMul + twoMul + threeMul;
-    }
+    // public static QuickColor Lerp(in this QuickColor A, in QuickColor B, in float lerp)
+    // {
+    //     return A * (1 - lerp) + B * lerp;
+    // }
 
 
 
@@ -138,5 +109,196 @@ public static class VectorHelpers
     {
         multiplied.X = new Vector<float>(target.X) * multiplier;
         multiplied.Y = new Vector<float>(target.Y) * multiplier;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Min<T>(in this Vector<T> target, out T min) where T: struct, INumber<T>
+    {
+        min = target[0];
+        
+        for (int i = 0; i < Vector<T>.Count; i++)
+        {
+            min = T.Min(min, target[i]);
+        }
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Max<T>(in this Vector<T> target, out T max) where T: struct, INumber<T>
+    {
+        max = target[0];
+        
+        for (int i = 0; i < Vector<T>.Count; i++)
+        {
+            max = T.Max(max, target[i]);
+        }
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref Vector2Wide AsVector2(in this Vector3Wide target)
+    {
+        return ref Unsafe.As<Vector3Wide, Vector2Wide>(ref Unsafe.AsRef(in target));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref Vector2Wide AsVector2(in this Vector4Wide target)
+    {
+        return ref Unsafe.As<Vector4Wide, Vector2Wide>(ref Unsafe.AsRef(in target));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref Vector3Wide AsVector3(in this Vector4Wide target)
+    {
+        return ref Unsafe.As<Vector4Wide, Vector3Wide>(ref Unsafe.AsRef(in target));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref Vector3Wide AsVector3(in this Vector2Wide target)
+    {
+        return ref Unsafe.As<Vector2Wide, Vector3Wide>(ref Unsafe.AsRef(in target));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref Vector4Wide AsVector4(in this Vector2Wide target)
+    {
+        return ref Unsafe.As<Vector2Wide, Vector4Wide>(ref Unsafe.AsRef(in target));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ref Vector4Wide AsVector4(in this Vector3Wide target)
+    {
+        return ref Unsafe.As<Vector3Wide, Vector4Wide>(ref Unsafe.AsRef(in target));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2Wide Min(in Vector2Wide left, in Vector2Wide right)
+    {
+        Unsafe.SkipInit(out Vector2Wide result);
+        result.X = Vector.Min(left.X, right.X);
+        result.Y = Vector.Min(left.Y, right.Y);
+        return result;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Min(in Vector2Wide left, in Vector2Wide right, out Vector2Wide result)
+    {
+        result.X = Vector.Min(left.X, right.X);
+        result.Y = Vector.Min(left.Y, right.Y);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2Wide Max(in Vector2Wide left, in Vector2Wide right)
+    {
+        Unsafe.SkipInit(out Vector2Wide result);
+        result.X = Vector.Max(left.X, right.X);
+        result.Y = Vector.Max(left.Y, right.Y);
+        return result;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Max(in Vector2Wide left, in Vector2Wide right, out Vector2Wide result)
+    {
+        result.X = Vector.Max(left.X, right.X);
+        result.Y = Vector.Max(left.Y, right.Y);
+    }
+
+
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Ceiling(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = Vector.Ceiling(target.X);
+        result.Y = Vector.Ceiling(target.Y);
+        result.Z = Vector.Ceiling(target.Z);
+        result.W = Vector.Ceiling(target.W);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Floor(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = Vector.Floor(target.X);
+        result.Y = Vector.Floor(target.Y);
+        result.Z = Vector.Floor(target.Z);
+        result.W = Vector.Floor(target.W);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void AlignBounds(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = Vector.Floor(target.X);
+        result.Y = Vector.Floor(target.Y);
+        result.Z = Vector.Ceiling(target.Z);
+        result.W = Vector.Ceiling(target.W);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void AlignShrinkBounds(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = Vector.Ceiling(target.X);
+        result.Y = Vector.Ceiling(target.Y);
+        result.Z = Vector.Floor(target.Z);
+        result.W = Vector.Floor(target.W);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Round(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = Vector.Floor(target.X + OneHalf);
+        result.Y = Vector.Floor(target.Y + OneHalf);
+        result.Z = Vector.Floor(target.Z + OneHalf);
+        result.W = Vector.Floor(target.W + OneHalf);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void AlignUpperBounds(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = target.X;
+        result.Y = target.Y;
+        result.Z = Vector.Ceiling(target.Z);
+        result.W = Vector.Ceiling(target.W);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void AlignWidth(in this Vector4Wide target, out Vector4Wide result)
+    {
+        result.X = Vector.Floor(target.X);
+        result.Y = target.Y;
+        result.Z = Vector.Ceiling(target.Z);
+        result.W = target.W;
     }
 }

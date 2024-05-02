@@ -39,6 +39,15 @@ public ref struct QuickColor
 
 
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void PackedFromVector3(in Vector3 rgb, out int color)
+    {
+        Vector3 mul = rgb * 255f;
+        color = PixelPusher.AllBits << 24 | (byte)mul.Z << 16 | (byte)mul.Y << 8 | (byte)mul.X;
+    }
+
+
+
     [FieldOffset(0)]
     public byte R;
     

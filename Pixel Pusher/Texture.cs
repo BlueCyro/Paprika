@@ -70,6 +70,11 @@ public class Texture : IDisposable
         }
     }
 
+    public unsafe void Update(void* data, uint width, uint height)
+    {
+        _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
+    }
+
     public void Bind(TextureUnit textureSlot = TextureUnit.Texture0)
     {
         _gl.ActiveTexture(textureSlot);

@@ -134,24 +134,11 @@ public partial class PixelPusher
         int maxX = (int)bbox.Z;
         int maxY = (int)bbox.W;
         int frameWidth = FrameBufferSize.Width;
-        // int bboxWidth = maxX - minX;
         int x = 0;
-        
-        // Span<int> colStash = stackalloc int[bboxWidth + 1];
-        // Span<float> zStash = stackalloc float[bboxWidth + 1];
-        // int* colStart = (int*)Unsafe.AsPointer(ref colStash[0]);
-        // float* zStart = (float*)Unsafe.AsPointer(ref zStash[0]);
-        // int i = 0;
 
-        // FillRect(bbox);
         for (int y = maxY; y > minY; y--)
         {
             int row = y * frameWidth;
-            // Unsafe.CopyBlock(colStart, bufStart + (minX + minY * frameWidth), (uint)bboxWidth * sizeof(int));
-            // Unsafe.CopyBlock(zStart, zBufStart + (minX + minY * frameWidth), (uint)bboxWidth * sizeof(float));
-
-            // for (int i = bboxWidth; i > 0; i -= Vector<int>.Count)
-            // i = 0;
             for (x = maxX; x > minX; x -= Vector<int>.Count)
             {
                 int vecStart = x - Vector<int>.Count + row;
@@ -161,9 +148,14 @@ public partial class PixelPusher
                 float* zStart = zBufStart + vecFloatStart;
 
 
-
                 Vector<int> bufVec = Vector.Load(colStart);
                 Vector<float> bufVecZ = Vector.Load(zStart);
+
+                // Vector<int> bufVec = *(Vector<int>*)colStart;SEEEEEEs
+                // Vector<float> bufVecZ = *(Vector<float>*)zStart;
+
+                // Vector<int> bufVec = Vector.LoadUnsafe(ref Unsafe.AsRef<int>(colStart));
+                // Vector<float> bufVecZ = Vector.LoadUnsafe(ref Unsafe.AsRef<float>(zStart));
 
 
                 edges.IsInside(x, y, out Vector3Wide eN);
@@ -182,90 +174,14 @@ public partial class PixelPusher
                 
                 *(Vector<int>*)colStart = colResult;
                 *(Vector<float>*)zStart = zResult;
-                // Vector.StoreUnsafe(maskedCol, ref *colOffset);
-                // Vector.StoreUnsafe(maskedZ, ref *zOffset);
-
-                // i++;
+                
+                // Vector.Store(colResult, colStart);
+                // Vector.Store(zResult, zStart);
+                // Vector.StoreAligned(colResult, colStart);
+                // Vector.StoreAligned(zResult, zStart);
             }
-
-            // Unsafe.CopyBlock(bufStart + (minX + minY * frameWidth), colStart, (uint)bboxWidth * sizeof(int));
-            // Unsafe.CopyBlock(zBufStart + (minX + minY * frameWidth), colStart, (uint)bboxWidth * sizeof(float));
-            // Console.WriteLine($"Rounded: {maxX - x}");
-            // Console.WriteLine($"Width: {Math.Ceiling(FrameBufferSize.WidthSingle / Vector<int>.Count) * Vector<int>.Count}");
-            // rowSlice.CopyTo(rowBuf);
         }
     }
-
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawPinedaTriangleBundle(ref TriangleWide triBundle, in Span<int> bufSlice, in Span<float> zBufSlicem, in Vector3Wide oldZ)
-    {
-
-        QuickColor col = new(0, 255, 0, 255);
-        QuickColor boundsCol = new(255, 127, 0, 255);
-        Vector<int> wideCol = new(boundsCol.RGBA);
-        TriangleWide.GetTotalBounds(triBundle, out Vector3 bboxMin, out Vector3 bboxMax);
-        EdgesBundled edges = new(triBundle);
-
-
-        int minX = Math.Clamp((int)bboxMin.X, 0, FrameBufferSize.Width - 1);
-        int minY = Math.Clamp((int)bboxMin.Y, 0, FrameBufferSize.Height - 1);
-        int maxX = Math.Clamp((int)bboxMax.X, 0, FrameBufferSize.Width - 1);
-        int maxY = Math.Clamp((int)bboxMax.Y, 0, FrameBufferSize.Height - 1);
-        
-
-        DrawBounds(new(minX, minY, 0), new(maxX, maxY, 0), col.RGBA);
-        int width = FrameBufferSize.Width;
-
-        for (int x = maxX - 1; x > minX; x--)
-        {
-            for (int y = maxY - 1; y > minY; y--)
-            {
-                edges.IsInside(x, y, out Vector3Wide eN, out _);
-
-
-                int vecStart = x + y * width;
-                // int vecStart = x - Vector<int>.Count + y * width;
-                // int vecFloatStart = x - Vector<float>.Count + y * width;
-                // ref int first = ref bufSlice[vecStart];
-                // ref float firstZ = ref zBufSlice[vecFloatStart];
-
-                // Vector<int> bufVec = Vector.LoadUnsafe(ref first);
-                // Vector<float> bufVecZ = Vector.LoadUnsafe(ref firstZ);
-
-                // VectorHelpers.InterpolateBarycentric(Red, Green, Blue, eN, out BigVec3 bigCol);
-                // VectorHelpers.InterpolateBarycentric(tri.uv1, tri.uv2, tri.uv3, eN, out BigVec2 bigUV);
-                // RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, eN, out Vector<float> bigDepth);
-
-
-                // bigUV *= 255f;
-                // bigUV.ConvertToInt32(out var RWide, out var GWide);
-                // Vector<int> wideInterp = FullByte << 24 | zeroInt << 16 | GWide << 8 | RWide;
-
-
-                // var depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
-
-
-                var mask =
-                    Vector.GreaterThanOrEqualAny(eN.X, Vector<float>.Zero) &&
-                    Vector.GreaterThanOrEqualAny(eN.Y, Vector<float>.Zero) &&
-                    Vector.GreaterThanOrEqualAny(eN.Z, Vector<float>.Zero);
-
-
-                // Vector<int> maskedCol = Vector.ConditionalSelect(mask, wideCol, bufVec);
-                // Vector<float> maskedZ = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
-                // maskedCol.StoreUnsafe(ref first);
-                // maskedZ.StoreUnsafe(ref firstZ);
-                bufSlice[vecStart] = mask ? col.RGBA : 0;
-                // FillRect(new(x - Vector<int>.Count, y - 1), new(x, y), x / Vector<int>.Count % 2 == 0 ? new QuickColor(128, 0, 0, 255).RGBA : new QuickColor(0, 128, 0, 255).RGBA);
-            }
-
-            // rowSlice.CopyTo(rowBuf);
-        }
-    }
-
-
 
     public void FillRect(in Vector4 bbox)
     {

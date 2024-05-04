@@ -1,14 +1,13 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
 using BepuUtilities;
 
 
 namespace Paprika;
 
 
-[StructLayout(LayoutKind.Explicit)]
+[StructLayout(LayoutKind.Explicit, Size = 64)]
 public struct Triangle // Field offsets help significantly in aligning the memory for this struct
 {
     [FieldOffset(0)]
@@ -76,7 +75,7 @@ public struct Triangle // Field offsets help significantly in aligning the memor
 }
 
 
-[StructLayout(LayoutKind.Sequential, Pack = 32)]
+[StructLayout(LayoutKind.Sequential, Size = 512)]
 public struct TriangleWide
 {
     public Vector3Wide A;
@@ -106,6 +105,23 @@ public struct TriangleWide
         VectorHelpers.Min(VectorHelpers.Min(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMin);
 
         VectorHelpers.Max(VectorHelpers.Max(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMax);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Get2DBounds(in TriangleWide bundle, out Int4Wide bounds)
+    {
+        Unsafe.SkipInit(out Vector4Wide boundsSingle);
+        ref Vector2Wide boundsMin = ref boundsSingle.AsVector2();
+        ref Vector2Wide boundsMax = ref Unsafe.Add(ref boundsSingle.AsVector2(), 1);
+
+        // Using min like this rather than using two out parameters yields a shorter method from the JIT
+        VectorHelpers.Min(VectorHelpers.Min(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMin);
+
+        VectorHelpers.Max(VectorHelpers.Max(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMax);
+
+        boundsSingle.ConvertToInt32(out bounds);
     }
 
 

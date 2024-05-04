@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Paprika;
 
+// [StructLayout(LayoutKind.Sequential, Pack = 16)]
 public readonly struct RenderBuffer<T> : IRenderBuffer, IDisposable where T: unmanaged
 {
     public unsafe T this[int index]
@@ -30,7 +32,7 @@ public readonly struct RenderBuffer<T> : IRenderBuffer, IDisposable where T: unm
 
 
 
-    public readonly Size2D Size { get; init; }
     public readonly DumbBuffer<T> Buffer;
+    public readonly Size2D Size { get; init; }
     public readonly Type BufferType => typeof(T);
 }

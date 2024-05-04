@@ -9,35 +9,48 @@ using BepuUtilities;
 namespace Paprika;
 
 
-[StructLayout(LayoutKind.Sequential, Pack = 32)]
-public readonly ref struct EdgesVectorized(in Vector3 a, in Vector3 b, in Vector3 c)
+[StructLayout(LayoutKind.Sequential, Size = 512)]
+public ref struct EdgesVectorized
 {
-    public static readonly Vector<float> Row = new(Enumerable.Range(0, Vector<float>.Count).Select(i => (float)i).Reverse().ToArray());
+    public Vector<float> A1;
+    public Vector<float> B1;
+    public Vector<float> C1;
 
 
 
-    public readonly Vector<float> A1 = new(b.Y - c.Y);
-    public readonly Vector<float> B1 = new(c.X - b.X);
-    public readonly Vector<float> C1 = new(b.X * c.Y - c.X * b.Y);
+    public Vector<float> A2;
+    public Vector<float> B2;
+    public Vector<float> C2;
 
 
 
-    public readonly Vector<float> A2 = new(c.Y - a.Y);
-    public readonly Vector<float> B2 = new(a.X - c.X);
-    public readonly Vector<float> C2 = new(c.X * a.Y - a.X * c.Y);
-
-
-
-    public readonly Vector<float> A3 = new(a.Y - b.Y);
-    public readonly Vector<float> B3 = new(b.X - a.X);
-    public readonly Vector<float> C3 = new(a.X * b.Y - b.X * a.Y);
+    public Vector<float> A3;
+    public Vector<float> B3;
+    public Vector<float> C3;
 
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void IsInside(in int startX, in int startY, out Vector3Wide eN)
+    public unsafe void IsInside(in int startX, in int startY, out Vector3Wide eN)
     {
-        // Unsafe.SkipInit(out eN);
+        Unsafe.SkipInit(out Vector<float> Row);
+
+        switch (Vector<float>.Count)
+        {
+            case 16:
+                Row = Vector512.Create(15f, 14f, 13f, 12f, 11f, 10f, 9f, 8f, 7f, 6f, 5f, 4f, 3f, 2f, 1f, 0f).AsVector();
+                break;
+            
+            case 8:
+                Row = Vector256.Create(7f, 6f, 5f, 4f, 3f, 2f, 1f, 0f).AsVector();
+                break;
+            
+            case 4:
+                Row = Vector128.Create(3f, 2f, 1f, 0f).AsVector();
+                break;
+        }
+
+        Unsafe.SkipInit(out eN);
         Vector<float> startXV = new Vector<float>(startX) - Row;
         Vector<float> startYV = new Vector<float>(startY);
 
@@ -63,48 +76,82 @@ public readonly ref struct EdgesVectorized(in Vector3 a, in Vector3 b, in Vector
 
         Vector3Wide.Scale(eN, MathHelper.FastReciprocal(eN.X + eN.Y + eN.Z), out eN);
     }
-}
-
-
-
-
-public readonly ref struct EdgesBundled(in TriangleWide triangle)
-{
-    public static readonly Vector<float> Row = new(Enumerable.Range(0, Vector<float>.Count).Select(i => (float)i).Reverse().ToArray());
-
-
-
-    public readonly Vector<float> A1 = triangle.B.Y - triangle.C.Y;
-    public readonly Vector<float> B1 = triangle.C.X - triangle.B.X;
-    public readonly Vector<float> C1 = triangle.B.X * triangle.C.Y - triangle.C.X * triangle.B.Y;
-
-
-
-    public readonly Vector<float> A2 = triangle.C.Y - triangle.A.Y;
-    public readonly Vector<float> B2 = triangle.A.X - triangle.C.X;
-    public readonly Vector<float> C2 = triangle.C.X * triangle.A.Y - triangle.A.X * triangle.C.Y;
-
-
-
-    public readonly Vector<float> A3 = triangle.A.Y - triangle.B.Y;
-    public readonly Vector<float> B3 = triangle.B.X - triangle.A.X;
-    public readonly Vector<float> C3 = triangle.A.X * triangle.B.Y - triangle.B.X * triangle.A.Y;
 
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void IsInside(in int startX, in int startY, out Vector3Wide eN, out Vector<float> magnitude)
+    public void UpdateEdges(in Vector3 a, in Vector3 b, in Vector3 c)
     {
-        //Vector<float> startXV = (Vector<float>.One * startX) - Row;
-        // var startYV = One * startY;
+        float a1 = b.Y - c.Y;
+        float b1 = c.X - b.X;
+        float c1 = b.X * c.Y - c.X * b.Y;
 
 
-        eN.X = A1 * startX + B1 * startY + C1;
-        eN.Y = A2 * startX + B2 * startY + C2;
-        eN.Z = A3 * startX + B3 * startY + C3;
+        float a2 = c.Y - a.Y;
+        float b2 = a.X - c.X;
+        float c2 = c.X * a.Y - a.X * c.Y;
 
 
-        magnitude = eN.X + eN.Y + eN.Z;
-        eN /= magnitude;
+        float a3 = a.Y - b.Y;
+        float b3 = b.X - a.X;
+        float c3 = a.X * b.Y - b.X * a.Y;
+
+
+
+        A1 = new(a1);
+        B1 = new(b1);
+        C1 = new(c1);
+
+        A2 = new(a2);
+        B2 = new(b2);
+        C2 = new(c2);
+
+        A3 = new(a3);
+        B3 = new(b3);
+        C3 = new(c3);
     }
 }
+
+
+
+
+// public readonly ref struct EdgesBundled(in TriangleWide triangle)
+// {
+//     public static readonly Vector<float> Row = new(Enumerable.Range(0, Vector<float>.Count).Select(i => (float)i).Reverse().ToArray());
+
+
+
+//     public readonly Vector<float> A1 = triangle.B.Y - triangle.C.Y;
+//     public readonly Vector<float> B1 = triangle.C.X - triangle.B.X;
+//     public readonly Vector<float> C1 = triangle.B.X * triangle.C.Y - triangle.C.X * triangle.B.Y;
+
+
+
+//     public readonly Vector<float> A2 = triangle.C.Y - triangle.A.Y;
+//     public readonly Vector<float> B2 = triangle.A.X - triangle.C.X;
+//     public readonly Vector<float> C2 = triangle.C.X * triangle.A.Y - triangle.A.X * triangle.C.Y;
+
+
+
+//     public readonly Vector<float> A3 = triangle.A.Y - triangle.B.Y;
+//     public readonly Vector<float> B3 = triangle.B.X - triangle.A.X;
+//     public readonly Vector<float> C3 = triangle.A.X * triangle.B.Y - triangle.B.X * triangle.A.Y;
+
+
+
+//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//     public readonly void IsInside(in int startX, in int startY, out Vector3Wide eN, out Vector<float> magnitude)
+//     {
+//         //Vector<float> startXV = (Vector<float>.One * startX) - Row;
+//         // var startYV = One * startY;
+
+
+//         eN.X = A1 * startX + B1 * startY + C1;
+//         eN.Y = A2 * startX + B2 * startY + C2;
+//         eN.Z = A3 * startX + B3 * startY + C3;
+
+
+//         magnitude = eN.X + eN.Y + eN.Z;
+//         eN /= magnitude;
+//     }
+// }

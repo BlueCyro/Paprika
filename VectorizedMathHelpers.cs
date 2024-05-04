@@ -1,17 +1,44 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using BepuUtilities;
 
 
 namespace Paprika;
 
+[StructLayout(LayoutKind.Sequential, Pack = 16)]
 public static class VectorHelpers
 {
     public const float RAD2DEG = 180f / MathF.PI;
     public const float DEG2RAD = MathF.PI / 180f;
-    public static readonly Vector<float> OneHalf = Vector<float>.One / 2f;
-    public static readonly Vector<float> OneThird = new(1f / 3f);
+    public static Vector<float> OneHalf
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Vector<float>.One / 2f;
+    }
+
+
+    public static Vector<float> OneThird
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => new(1f / 3f);
+    }
+
+
+    public static Vector<float> VectorByteWidth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => new(Vector<byte>.Count);
+    }
+
+
+    public static Vector<float> VectorByteWidthRecip
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => MathHelper.FastReciprocal(VectorByteWidth);
+    }
+
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -300,5 +327,29 @@ public static class VectorHelpers
         result.Y = target.Y;
         result.Z = Vector.Ceiling(target.Z);
         result.W = target.W;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void VectorAlignWidth(in this Vector4Wide target, out Vector4Wide result)
+    {
+        Unsafe.SkipInit(out result);
+        result.X = Vector.Floor(target.X * VectorHelpers.VectorByteWidthRecip) * VectorHelpers.VectorByteWidth;
+        result.Y = target.Y;
+        result.Z = Vector.Ceiling(target.Z * VectorHelpers.VectorByteWidthRecip) * VectorHelpers.VectorByteWidth;
+        result.W = target.W;
+    }
+
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void ConvertToInt32(in this Vector4Wide target, out Int4Wide result)
+    {
+        result.X = Vector.ConvertToInt32(target.X);
+        result.Y = Vector.ConvertToInt32(target.Y);
+        result.Z = Vector.ConvertToInt32(target.Z);
+        result.W = Vector.ConvertToInt32(target.W);
     }
 }

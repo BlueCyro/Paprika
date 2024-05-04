@@ -8,7 +8,7 @@
             "name": "Debug Paprika",
             "type": "coreclr",
             "request": "launch",
-            "args": [ "./Models/Sigil.gltf" ],
+            "args": [ "./Models/tinobed.glb" ],
             "preLaunchTask": {
                 "task": "build",
                 "type": "dotnet"

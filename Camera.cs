@@ -1,9 +1,11 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Paprika;
 
 using static VectorHelpers;
 
+// [StructLayout(LayoutKind.Sequential, Pack = 64)]
 public class Camera(float nearClip, float farClip, float fov, Size2D resolution, Vector3 position, Quaternion rotation)
 {
     public Camera(float nearClip, float farClip, float fov, Size2D resolution, Vector3 position, Quaternion rotation, bool init = true) : this(nearClip, farClip, fov, resolution, position, rotation)

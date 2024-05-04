@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using BepuUtilities;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -281,6 +282,7 @@ public partial class PixelPusher
 
 
 
+    // static EdgesVectorized edges = new();
     public void Pusher_DoRender()
     {
         DumbBuffer<TriangleWide> triArray = Program.WideUploaded;
@@ -288,27 +290,24 @@ public partial class PixelPusher
         Matrix4x4 mvpMatrix = MainCamera.ViewProjectionMatrix * ViewportMatrix; // Camera view projection -> viewport
         Matrix4x4Wide.Broadcast(mvpMatrix, out Matrix4x4Wide mvpMatrixWide); // Broadcast to wide matrix for triangle transformation
         Vector3Wide wideCameraPos = Vector3Wide.Broadcast(MainCamera.Position); // Broadcast to wide camera pos
+        EdgesVectorized edges = new();
 
         
-        Vector4Wide.Broadcast(new(FrameBufferSize.WidthSingle - 1, FrameBufferSize.HeightSingle - 1, FrameBufferSize.WidthSingle - 1, FrameBufferSize.HeightSingle - 1), out Vector4Wide frameBounds);
+        // Vector4Wide.Broadcast(new(FrameBufferSize.WidthSingle, FrameBufferSize.HeightSingle - 1, FrameBufferSize.WidthSingle, FrameBufferSize.HeightSingle - 1), out Vector4Wide frameBounds);
+        Int4Wide.Broadcast(Vector128.Create(FrameBufferSize.Width, FrameBufferSize.Height - 1, FrameBufferSize.Width, FrameBufferSize.Height - 1), out Int4Wide frameBounds);
         Vector<float> vecWidth = new Vector<float>(Vector<float>.Count);
         Vector<float> vecWidthRecip = MathHelper.FastReciprocal(vecWidth);
-        Vector4Wide zero = new();
+        // Vector4Wide zero = new();
+        Int4Wide zero = new();
 
         // Lotsa guys
-        TriangleWide transformed;
-        Vector<float> dots;
-        Vector3Wide center;
-        Vector3Wide normal;
-        Vector3Wide diff;
-        Vector4Wide bbox;
-        Vector3Wide oldZWide;
-        Triangle narrow;
+        // Vector4Wide bbox;
+        // Triangle narrow;
         float dot;
-        int color;
 
 
-        Vector4 bboxNarrow;
+        // Vector4 bboxNarrow;
+        Vector128<int> bboxNarrow;
         Vector3 oldZ;
         
         
@@ -318,19 +317,19 @@ public partial class PixelPusher
             {
                 TriangleWide* curTri = triArray + i;
                 
-                TriangleWide.GetCenter(*curTri, out center);
-                TriangleWide.GetNormal(*curTri, out normal);
+                TriangleWide.GetCenter(*curTri, out Vector3Wide center);
+                TriangleWide.GetNormal(*curTri, out Vector3Wide normal);
 
-                Vector3Wide.Subtract(wideCameraPos, center, out diff);
-                Vector3Wide.Dot(normal, Vector3Wide.Normalize(diff), out dots);
+                Vector3Wide.Subtract(wideCameraPos, center, out Vector3Wide diff);
+                Vector3Wide.Dot(normal, Vector3Wide.Normalize(diff), out Vector<float> dots);
 
                 if (Vector.LessThanOrEqualAll(dots, Vector<float>.Zero))
                     continue;
             
-                TriangleWide.Transform(*curTri, mvpMatrixWide, out transformed);
-                TriangleWide.ZDivide(transformed, out oldZWide, out transformed);
+                TriangleWide.Transform(*curTri, mvpMatrixWide, out TriangleWide transformed);
+                TriangleWide.ZDivide(transformed, out Vector3Wide oldZWide, out transformed);
                 // TriangleWide.GetBounds(transformed, out Vector3Wide bboxMinWide, out Vector3Wide bboxMaxWide);
-                TriangleWide.Get2DBounds(transformed, out bbox);
+                TriangleWide.Get2DBounds(transformed, out Int4Wide bbox);
 
                 // Console.WriteLine($"V4 bbox: {result}");
                 // bool bboxCheck = 
@@ -346,10 +345,11 @@ public partial class PixelPusher
                 // Vector4Wide.Scale(bbox, vecWidthRecip, out bbox);
                 // VectorHelpers.AlignWidth(bbox, out bbox);
                 // Vector4Wide.Scale(bbox, vecWidth, out bbox);
+                // VectorHelpers.VectorAlignWidth(bbox, out bbox);
 
 
-                Vector4Wide.Max(bbox, zero, out Vector4Wide result);
-                Vector4Wide.Min(result, frameBounds, out result);
+                Int4Wide.Max(bbox, zero, out Int4Wide result);
+                Int4Wide.Min(result, frameBounds, out result);
                 // bboxMinWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.X), wideFrameWidth);
                 // bboxMinWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.Y), wideFrameHeight);
                 // bboxMaxWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.X), wideFrameWidth);
@@ -366,12 +366,12 @@ public partial class PixelPusher
                     // if (dot <= 0f)
                     //     continue;
 
-                    TriangleWide.ReadSlot(ref transformed, j, out narrow);
-                    QuickColor.PackedFromVector3(Vector3.One * dot, out color);
-                    Vector4Wide.ReadSlot(ref result, j, out bboxNarrow);
+                    TriangleWide.ReadSlot(ref transformed, j, out Triangle narrow);
+                    QuickColor.PackedFromVector3(Vector3.One * dot, out int color);
+                    Int4Wide.ReadSlot(ref result, j, out bboxNarrow);
                     Vector3Wide.ReadSlot(ref oldZWide, j, out oldZ);
 
-                    DrawPinedaTriangleSIMD(ref narrow, color, PixelBuffer.Buffer, ZBuffer.Buffer, bboxNarrow, oldZ);
+                    DrawPinedaTriangleSIMD(narrow, color, PixelBuffer.Buffer, ZBuffer.Buffer, bboxNarrow, oldZ, ref edges);
                     renderedTris++;
                 }
             }

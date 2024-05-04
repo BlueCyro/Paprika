@@ -11,7 +11,7 @@ public partial class PixelPusher
 {
     public static readonly Vector<int> FullByte = new(255);
     public static readonly Vector<int> zeroInt = new();
-    public static readonly int AllBits = unchecked((int)uint.MaxValue);
+    public const int AllBits = unchecked((int)uint.MaxValue);
     public static readonly Vector3 Red = new(1f, 0f, 0f);
     public static readonly Vector3 Green = new(0f, 1f, 0f);
     public static readonly Vector3 Blue = new(0f, 0f, 1f);
@@ -119,27 +119,25 @@ public partial class PixelPusher
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void DrawPinedaTriangleSIMD(
-        ref Triangle tri,
+        in Triangle tri,
         in int col,
         DumbBuffer<int> bufStart,
         DumbBuffer<float> zBufStart,
-        in Vector4 bbox,
-        in Vector3 oldZ)
+        in Vector128<int> bbox,
+        in Vector3 oldZ,
+        ref EdgesVectorized edges)
     {
         Vector<int> wideCol = new(col);
-        EdgesVectorized edges = new(tri.A, tri.B, tri.C);
+        edges.UpdateEdges(tri.A, tri.B, tri.C);
 
-        int minX = (int)bbox.X;
-        int minY = (int)bbox.Y;
-        int maxX = (int)bbox.Z;
-        int maxY = (int)bbox.W;
+
         int frameWidth = FrameBufferSize.Width;
         int x = 0;
 
-        for (int y = maxY; y > minY; y--)
+        for (int y = bbox[3]; y > bbox[1]; y--)
         {
             int row = y * frameWidth;
-            for (x = maxX; x > minX; x -= Vector<int>.Count)
+            for (x = bbox[2]; x > bbox[0]; x -= Vector<int>.Count)
             {
                 int vecStart = x - Vector<int>.Count + row;
                 int vecFloatStart = x - Vector<float>.Count + row;
@@ -150,12 +148,6 @@ public partial class PixelPusher
 
                 Vector<int> bufVec = Vector.Load(colStart);
                 Vector<float> bufVecZ = Vector.Load(zStart);
-
-                // Vector<int> bufVec = *(Vector<int>*)colStart;SEEEEEEs
-                // Vector<float> bufVecZ = *(Vector<float>*)zStart;
-
-                // Vector<int> bufVec = Vector.LoadUnsafe(ref Unsafe.AsRef<int>(colStart));
-                // Vector<float> bufVecZ = Vector.LoadUnsafe(ref Unsafe.AsRef<float>(zStart));
 
 
                 edges.IsInside(x, y, out Vector3Wide eN);
@@ -174,11 +166,6 @@ public partial class PixelPusher
                 
                 *(Vector<int>*)colStart = colResult;
                 *(Vector<float>*)zStart = zResult;
-                
-                // Vector.Store(colResult, colStart);
-                // Vector.Store(zResult, zStart);
-                // Vector.StoreAligned(colResult, colStart);
-                // Vector.StoreAligned(zResult, zStart);
             }
         }
     }
@@ -194,3 +181,45 @@ public partial class PixelPusher
         }
     }
 }
+
+
+
+// This is just a blatant clone of Bepu's version of this.
+// In theory, this should help the compiler inline better according to mister John Bepu (Ross)
+public interface IForLoop<T>
+{
+    void LoopBody(T iteration);
+}
+
+
+
+// public struct TriBoundsRowIterator : IForLoop<int>
+// {
+//     int row;
+//     TriBoundsColumnIterator columnIterator;
+
+
+
+//     public void LoopBody(int iteration)
+//     {
+
+//     }
+
+
+
+//     public void Reset()
+//     {
+        
+//     }
+// }
+
+
+
+// public struct TriBoundsColumnIterator : IForLoop<int>
+// {
+
+//     public void LoopBody(int iteration)
+//     {
+
+//     }
+// }

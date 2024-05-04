@@ -6,7 +6,7 @@ using BepuUtilities;
 
 namespace Paprika;
 
-// [StructLayout(LayoutKind.Sequential, Pack = 64)]
+// [StructLayout(LayoutKind.Sequential, Size = 512 )]
 public struct Matrix4x4Wide
 {
     public Vector4Wide X;

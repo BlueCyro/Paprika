@@ -70,17 +70,15 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
     public DumbBuffer(int count)
     {
         Length = count;
-        LengthBytes = (nuint)(count * sizeof(T));
-        nuint alignment = (nuint)Vector<byte>.Count;
-        // nuint alignment = 32;
-        // if (typeof(T).IsAssignableFrom(typeof(ValueType)))
-        //     alignment = (nuint)Vector<T>.Count;
-        // else
-        //     alignment = (nuint)Vector<float>.Count;
+        int byteLen = Length * sizeof(T);
+        LengthBytes = (nuint)(Math.Ceiling((float)byteLen / Vector<byte>.Count) * Vector<byte>.Count);
+        
+        Console.WriteLine($"Instantiating {typeof(T)} buffer with byte length of: {byteLen}, Real: {LengthBytes}");
+        nuint alignment = (nuint)Unsafe.SizeOf<T>(); // I need to research memory alignment better, will test this on other systems
 
         Pointer = (T*)NativeMemory.AlignedAlloc(LengthBytes, alignment);
-
-        // StartAddress = IntPtr.
+        IntPtr pointerView = new IntPtr(Pointer);
+        Console.WriteLine($"Aligning on: {pointerView} ({alignment}, {pointerView % (int)alignment})");
     }
 
 
@@ -89,7 +87,6 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
     {
         GC.SuppressFinalize(this);
         NativeMemory.AlignedFree(Pointer);
-        // Marshal.FreeHGlobal(StartAddress);
     }
 
 

@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Software Renderer": {
+      "commandName": "Project",
+      "commandLineArgs": "./Models/tinobed.glb",
+      "workingDirectory": "C:\\Users\\Cyro\\Documents\\Coding Stuff\\Software Renderer"
+    }
+  }
+}

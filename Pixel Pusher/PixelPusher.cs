@@ -42,9 +42,9 @@ public partial class PixelPusher
 
 
     private bool bufferSwap = false;
-    private RenderBuffer<int> pixelBuffer1;
-    private RenderBuffer<int> pixelBuffer2;
-    public readonly RenderBuffer<float> ZBuffer;
+    public RenderBuffer<int> pixelBuffer1;
+    public RenderBuffer<int> pixelBuffer2;
+    public RenderBuffer<float> ZBuffer;
 
 
 
@@ -139,37 +139,38 @@ public partial class PixelPusher
 
     public void MouseMove(IMouse mouse, Vector2 delta)
     {
-        MainCamera.Rotation = Quaternion.CreateFromYawPitchRoll(-delta.X / FrameBufferSize.WidthSingle * MathF.Tau, delta.Y / FrameBufferSize.HeightSingle * MathF.PI - (MathF.PI / 2f), 0f);
+        // MainCamera.Rotation = Quaternion.CreateFromYawPitchRoll(-delta.X / FrameBufferSize.WidthSingle * MathF.Tau, delta.Y / FrameBufferSize.HeightSingle * MathF.PI - (MathF.PI / 2f), 0f);
     }
 
 
 
     private void Update(double delta)
     {
-        var board = input.Keyboards[0];
-        float shiftMod = 1f;
+        // Program.DEBUG_ReAllocateDumbBuffer();
+        // var board = input.Keyboards[0];
+        // float shiftMod = 1f;
 
-        if (board.IsKeyPressed(Key.ShiftLeft))
-            shiftMod = 5f;
+        // if (board.IsKeyPressed(Key.ShiftLeft))
+        //     shiftMod = 5f;
         
-        if (board.IsKeyPressed(Key.Space))
-            MainCamera.Position += MainCamera.Up * shiftMod * (float)delta;
+        // if (board.IsKeyPressed(Key.Space))
+        //     MainCamera.Position += MainCamera.Up * shiftMod * (float)delta;
         
-        if (board.IsKeyPressed(Key.E))
-            MainCamera.Position += -MainCamera.Up * shiftMod * (float)delta;
+        // if (board.IsKeyPressed(Key.E))
+        //     MainCamera.Position += -MainCamera.Up * shiftMod * (float)delta;
         
 
-        if (board.IsKeyPressed(Key.W))
-            MainCamera.Position += MainCamera.Forward * shiftMod * (float)delta;
+        // if (board.IsKeyPressed(Key.W))
+        //     MainCamera.Position += MainCamera.Forward * shiftMod * (float)delta;
         
-        if (board.IsKeyPressed(Key.S))
-            MainCamera.Position += -MainCamera.Forward * shiftMod * (float)delta;
+        // if (board.IsKeyPressed(Key.S))
+        //     MainCamera.Position += -MainCamera.Forward * shiftMod * (float)delta;
 
-        if (board.IsKeyPressed(Key.A))
-            MainCamera.Position += MainCamera.Right * shiftMod * (float)delta;
+        // if (board.IsKeyPressed(Key.A))
+        //     MainCamera.Position += MainCamera.Right * shiftMod * (float)delta;
 
-        if (board.IsKeyPressed(Key.D))
-            MainCamera.Position += -MainCamera.Right * shiftMod * (float)delta;
+        // if (board.IsKeyPressed(Key.D))
+        //     MainCamera.Position += -MainCamera.Right * shiftMod * (float)delta;
 
         
 
@@ -187,6 +188,7 @@ public partial class PixelPusher
         if (frame++ % frameCount == 0)
         {
             Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}, Tris: {renderedTris}");
+            // Console.WriteLine($"Camera pos: {MainCamera.Position}, Camera rot {MainCamera.Rotation}");
             avg = 0;
         }
         timer.Reset();
@@ -282,15 +284,16 @@ public partial class PixelPusher
 
 
 
-    // static EdgesVectorized edges = new();
-    public void Pusher_DoRender()
+    // static unsafe EdgesVectorized* edgesPointer = (EdgesVectorized*)NativeMemory.AlignedAlloc((nuint)sizeof(EdgesVectorized), 16);
+    // static unsafe Triangle* triPointer = (Triangle*)NativeMemory.AlignedAlloc((nuint)sizeof(Triangle), 16);
+    public unsafe void Pusher_DoRender()
     {
         DumbBuffer<TriangleWide> triArray = Program.WideUploaded;
         
         Matrix4x4 mvpMatrix = MainCamera.ViewProjectionMatrix * ViewportMatrix; // Camera view projection -> viewport
         Matrix4x4Wide.Broadcast(mvpMatrix, out Matrix4x4Wide mvpMatrixWide); // Broadcast to wide matrix for triangle transformation
         Vector3Wide wideCameraPos = Vector3Wide.Broadcast(MainCamera.Position); // Broadcast to wide camera pos
-        EdgesVectorized edges = new();
+
 
         
         // Vector4Wide.Broadcast(new(FrameBufferSize.WidthSingle, FrameBufferSize.HeightSingle - 1, FrameBufferSize.WidthSingle, FrameBufferSize.HeightSingle - 1), out Vector4Wide frameBounds);
@@ -299,6 +302,7 @@ public partial class PixelPusher
         Vector<float> vecWidthRecip = MathHelper.FastReciprocal(vecWidth);
         // Vector4Wide zero = new();
         Int4Wide zero = new();
+        EdgesVectorized edgesPointer = new();
 
         // Lotsa guys
         // Vector4Wide bbox;
@@ -307,16 +311,14 @@ public partial class PixelPusher
 
 
         // Vector4 bboxNarrow;
-        Vector128<int> bboxNarrow;
-        Vector3 oldZ;
-        
-        
+
+
         unsafe
         {
             for (int i = 0; i < triArray.Length; i++)
             {
                 TriangleWide* curTri = triArray + i;
-                
+
                 TriangleWide.GetCenter(*curTri, out Vector3Wide center);
                 TriangleWide.GetNormal(*curTri, out Vector3Wide normal);
 
@@ -325,7 +327,7 @@ public partial class PixelPusher
 
                 if (Vector.LessThanOrEqualAll(dots, Vector<float>.Zero))
                     continue;
-            
+
                 TriangleWide.Transform(*curTri, mvpMatrixWide, out TriangleWide transformed);
                 TriangleWide.ZDivide(transformed, out Vector3Wide oldZWide, out transformed);
                 // TriangleWide.GetBounds(transformed, out Vector3Wide bboxMinWide, out Vector3Wide bboxMaxWide);
@@ -366,12 +368,13 @@ public partial class PixelPusher
                     // if (dot <= 0f)
                     //     continue;
 
-                    TriangleWide.ReadSlot(ref transformed, j, out Triangle narrow);
+                    TriangleWide.ReadSlot(ref transformed, j, out Triangle triPointer);
                     QuickColor.PackedFromVector3(Vector3.One * dot, out int color);
-                    Int4Wide.ReadSlot(ref result, j, out bboxNarrow);
-                    Vector3Wide.ReadSlot(ref oldZWide, j, out oldZ);
+                    Int4Wide.ReadSlot(ref result, j, out Vector128<int> bboxNarrow);
+                    Vector3Wide.ReadSlot(ref oldZWide, j, out Vector3 oldZ);
 
-                    DrawPinedaTriangleSIMD(narrow, color, PixelBuffer.Buffer, ZBuffer.Buffer, bboxNarrow, oldZ, ref edges);
+
+                    DrawPinedaTriangleSIMD(triPointer, color, PixelBuffer.Buffer, ZBuffer.Buffer, bboxNarrow, oldZ, ref edgesPointer);
                     renderedTris++;
                 }
             }

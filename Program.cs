@@ -20,6 +20,8 @@ public class Program
     public static Stopwatch Timer = new();
     public static readonly int defaultCol = new QuickColor(255, 0, 0, 255).RGBA;
     public static readonly int firstCol = new QuickColor(0, 255, 0, 255).RGBA;
+    public static List<TriangleWide> widebatches = [];
+    public static PixelPusher pusher = new("Paprika Renderer", 1280, 1024);
 
     public static readonly int[] colors = [
         new QuickColor(255, 0, 0, 255).RGBA,
@@ -33,6 +35,7 @@ public class Program
     public static void Main(string[] args)
     {
         startTimer.Start();
+        now = TimeFloat + 5f;
         Console.WriteLine($"Using vector size of {Vector<byte>.Count * 8} bits for rasterization");
 
 
@@ -66,7 +69,18 @@ public class Program
             return;
         }
 
-        var model = ModelRoot.Load($"{args[0]}");
+        Upload(args[0]);
+
+
+        pusher.MainCamera.Position = new(0.51144695f, 2.4718034f, 8.403356f);
+        pusher.MainCamera.Rotation = new(-0.019815441f, -0.9137283f, 0.40335205f, -0.044888653f);
+        pusher.StartRender();
+    }
+
+
+    public static void Upload(string path)
+    {
+        var model = ModelRoot.Load($"{path}");
 
         var triList = model.LogicalMeshes.SelectMany(m => {
             var meshTris = m.EvaluateTriangles().Select<(IVertexBuilder A, IVertexBuilder B, IVertexBuilder C, Material mat), Triangle>(triangle => {
@@ -91,10 +105,6 @@ public class Program
         .ToList();
 
 
-
-        List<TriangleWide> widebatches = [];
-
-
         // foreach (Triangle tri in triList);
         for (int i = 0; i < triList.Count; i += Vector<float>.Count)
         {
@@ -108,25 +118,51 @@ public class Program
             widebatches.Add(current);
         }
 
+
         WideUploaded = new(widebatches.Count);
 
         for (int i = 0; i < widebatches.Count; i++)
         {
             WideUploaded[i] = widebatches[i];
         }
+    }
+    static float now = 0f;
+    public static void DEBUG_ReAllocateDumbBuffer()
+    {
+        if (now - TimeFloat <= 0f)
+        {
+            now = TimeFloat + 5f;
 
 
-        // unsafe
-        // {
-        //     fixed(void* ptr = &wideTris[0])
-        //     {
-        //         Unsafe.CopyBlock(WideUploaded, ptr, (uint)(widebatches.Count * Unsafe.SizeOf<TriangleWide>()));
-        //     }
+            // DumbBuffer<TriangleWide> wideBuf = new(widebatches.Count);
+            // for (int i = 0; i < widebatches.Count; i++)
+            // {
+            //     wideBuf[i] = widebatches[i];
+            // }
 
-        // }
+            // WideUploaded.Dispose();
+            // WideUploaded = wideBuf;
 
-        var pusher = new PixelPusher("Paprika Renderer", 1280, 1024);
-        pusher.StartRender();
+
+            // int width = pusher.pixelBuffer1.Size.Width;
+            // int height = pusher.pixelBuffer1.Size.Height;
+            // pusher.pixelBuffer1.Dispose();
+            // pusher.pixelBuffer1 = new(width, height);
+
+
+            // width = pusher.pixelBuffer2.Size.Width;
+            // height = pusher.pixelBuffer2.Size.Height;
+            // pusher.pixelBuffer2.Dispose();
+            // pusher.pixelBuffer2 = new(width, height);
+
+
+
+            // width = pusher.ZBuffer.Size.Width;
+            // height = pusher.ZBuffer.Size.Height;
+            // pusher.ZBuffer.Dispose();
+            // pusher.ZBuffer = new(width, height);
+            Console.WriteLine("Re-Allocating pixel buffers!");
+        }
     }
 }
 

@@ -74,11 +74,14 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
         LengthBytes = (nuint)(Math.Ceiling((float)byteLen / Vector<byte>.Count) * Vector<byte>.Count);
         
         Console.WriteLine($"Instantiating {typeof(T)} buffer with byte length of: {byteLen}, Real: {LengthBytes}");
-        nuint alignment = (nuint)Unsafe.SizeOf<T>(); // I need to research memory alignment better, will test this on other systems
+        // nuint alignment = (nuint)Unsafe.SizeOf<T>(); // I need to research memory alignment better, will test this on other systems
+        nuint alignment = 16;
+        // nuint alignment = (nuint)Math.Pow(2, Math.Round(Math.Log(Unsafe.SizeOf<T>()) / Math.Log(2)));
+
 
         Pointer = (T*)NativeMemory.AlignedAlloc(LengthBytes, alignment);
         IntPtr pointerView = new IntPtr(Pointer);
-        Console.WriteLine($"Aligning on: {pointerView} ({alignment}, {pointerView % (int)alignment})");
+        Console.WriteLine($"Aligning on: {pointerView} (Hex: {pointerView:x}) ({alignment}, {pointerView % (int)alignment})");
     }
 
 

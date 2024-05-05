@@ -75,7 +75,7 @@ public struct Triangle // Field offsets help significantly in aligning the memor
 }
 
 
-[StructLayout(LayoutKind.Sequential, Size = 512)]
+[StructLayout(LayoutKind.Sequential)]
 public struct TriangleWide
 {
     public Vector3Wide A;

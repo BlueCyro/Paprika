@@ -7,7 +7,7 @@ using BepuUtilities;
 
 namespace Paprika;
 
-[StructLayout(LayoutKind.Sequential, Pack = 16)]
+// [StructLayout(LayoutKind.Sequential, Pack = 16)]
 public static class VectorHelpers
 {
     public const float RAD2DEG = 180f / MathF.PI;

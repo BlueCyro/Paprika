@@ -5,7 +5,7 @@ using Silk.NET.Maths;
 
 namespace Paprika;
 
-[StructLayout(LayoutKind.Explicit, Size = 16)]
+[StructLayout(LayoutKind.Explicit)]
 public readonly struct Size2D // There are way too many things that are just a 2D vector, man.
 {
     public Size2D(in int width, in int height)

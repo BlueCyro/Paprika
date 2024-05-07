@@ -94,14 +94,12 @@ public struct Matrix4x4Wide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static unsafe void Transform(in Vector3Wide vector, in Matrix4x4Wide transform, out Vector3Wide transformed)
+    public static void Transform(in Vector3Wide vector, in Matrix4x4Wide transform, out Vector3Wide transformed)
     {
         Vector4Wide.Scale(transform.X, vector.X, out Vector4Wide transformed1);
         Vector4Wide.Scale(transform.Y, vector.Y, out Vector4Wide transformed2);
         Vector4Wide.Scale(transform.Z, vector.Z, out Vector4Wide transformed3);
 
-        Vector4Wide transform4 = transformed1 + transformed2 + transformed3 + transform.W;
-        transformed = *(Vector3Wide*)&transform4;
-        // transformed = (*(Vector3Wide*)&transformed1) + (*(Vector3Wide*)&transformed2) + (*(Vector3Wide*)&transformed3) + &transform->W;
+        transformed = (transformed1 + transformed2 + transformed3 + transform.W).AsVector3();
     }
 }

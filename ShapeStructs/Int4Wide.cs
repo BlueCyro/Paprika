@@ -8,7 +8,7 @@ using BepuUtilities;
 namespace Paprika;
 
 
-[StructLayout(LayoutKind.Sequential, Size = 512)]
+// [StructLayout(LayoutKind.Sequential, Size = 512)]
 public struct Int4Wide
 {
     public Vector<int> X;

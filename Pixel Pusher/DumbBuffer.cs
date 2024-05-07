@@ -70,18 +70,25 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
     public DumbBuffer(int count)
     {
         Length = count;
-        int byteLen = Length * sizeof(T);
-        LengthBytes = (nuint)(Math.Ceiling((float)byteLen / Vector<byte>.Count) * Vector<byte>.Count);
+        // int pack = typeof(T).StructLayoutAttribute?.Pack ?? 0;
+
+        // int alignment = pack > 0 ? pack : 16; // I need to research memory alignment better, will test this on other systems
+        // int alignedByteSize = (int)(Math.Ceiling(sizeof(T) / (double)alignment) * alignment);
+        int alignment = typeof(T).IsPrimitive ? sizeof(T) : 256;
         
-        Console.WriteLine($"Instantiating {typeof(T)} buffer with byte length of: {byteLen}, Real: {LengthBytes}");
-        // nuint alignment = (nuint)Unsafe.SizeOf<T>(); // I need to research memory alignment better, will test this on other systems
-        nuint alignment = 16;
+        int byteLen = sizeof(T) * Length;
+        // LengthBytes = (nuint)(alignedByteSize * Length);
+        LengthBytes = (nuint)byteLen;
+        // LengthBytes = (nuint)(Math.Ceiling((float)byteLen / Vector<T>.) * alignment);
+        Console.WriteLine($"Instantiating {typeof(T)} buffer with length of: {Length}, (Type size: {sizeof(T)}), (Bytes: {byteLen}), (Real: {LengthBytes})");
+
+        // nuint alignment = 64;
         // nuint alignment = (nuint)Math.Pow(2, Math.Round(Math.Log(Unsafe.SizeOf<T>()) / Math.Log(2)));
 
 
-        Pointer = (T*)NativeMemory.AlignedAlloc(LengthBytes, alignment);
+        Pointer = (T*)NativeMemory.AlignedAlloc(LengthBytes, (nuint)alignment);
         IntPtr pointerView = new IntPtr(Pointer);
-        Console.WriteLine($"Aligning on: {pointerView} (Hex: {pointerView:x}) ({alignment}, {pointerView % (int)alignment})");
+        Console.WriteLine($"Aligning on: {pointerView} (Hex: {pointerView:x}) ({alignment}, {pointerView % alignment})");
     }
 
 

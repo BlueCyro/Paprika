@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using BepuUtilities;
@@ -9,7 +8,7 @@ using BepuUtilities;
 namespace Paprika;
 
 
-[StructLayout(LayoutKind.Sequential, Size = 512)]
+// [StructLayout(LayoutKind.Sequential, Size = 512)]
 public ref struct EdgesVectorized
 {
     public Vector<float> A1;
@@ -80,7 +79,7 @@ public ref struct EdgesVectorized
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void UpdateEdges(in Vector3 a, in Vector3 b, in Vector3 c)
+    public void UpdateEdges(in Vector4 a, in Vector4 b, in Vector4 c)
     {
         float a1 = b.Y - c.Y;
         float b1 = c.X - b.X;

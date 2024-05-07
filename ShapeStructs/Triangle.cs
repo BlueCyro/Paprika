@@ -1,40 +1,41 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using BepuUtilities;
 
 
 namespace Paprika;
 
 
-[StructLayout(LayoutKind.Explicit, Size = 64)]
+[StructLayout(LayoutKind.Sequential, Size = 64)]
 public struct Triangle // Field offsets help significantly in aligning the memory for this struct
-{
-    [FieldOffset(0)]
-    public Vector3 A;
+{                      // These may be evil. Testing is pending...
+    // [FieldOffset(0)]
+    public Vector4 A;
 
-    [FieldOffset(16)]
-    public Vector3 B;
+    // [FieldOffset(16)]
+    public Vector4 B;
 
-    [FieldOffset(32)]
-    public Vector3 C;
+    // [FieldOffset(32)]
+    public Vector4 C;
 
 
 
     public Triangle(Vector3 a, Vector3 b, Vector3 c)
     {
-        A = a;
-        B = b;
-        C = c;
+        A = Unsafe.As<Vector3, Vector4>(ref a);
+        B = Unsafe.As<Vector3, Vector4>(ref b);
+        C = Unsafe.As<Vector3, Vector4>(ref c);
     }
 
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void GetBounds(out Vector3 min, out Vector3 max)
+    public readonly void GetBounds(out Vector4 min, out Vector4 max)
     {
-        min = Vector3.Min(Vector3.Min(A, B), C);
-        max = Vector3.Max(Vector3.Max(A, B), C);
+        min = Vector4.Min(Vector4.Min(A, B), C);
+        max = Vector4.Max(Vector4.Max(A, B), C);
     }
 
 
@@ -42,9 +43,9 @@ public struct Triangle // Field offsets help significantly in aligning the memor
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Transform(in Matrix4x4 transform)
     {
-        A = Vector3.Transform(A, transform);
-        B = Vector3.Transform(B, transform);
-        C = Vector3.Transform(C, transform);
+        A = Vector4.Transform(A, transform);
+        B = Vector4.Transform(B, transform);
+        C = Vector4.Transform(C, transform);
     }
 
 
@@ -69,13 +70,12 @@ public struct Triangle // Field offsets help significantly in aligning the memor
     }
 
 
-    
-    public readonly Vector3 Normal => Vector3.Normalize(Vector3.Cross(B - A, C - A));
-    public readonly Vector3 Center => (A + B + C) / 3f;
+    // public readonly Vector3 Normal => Vector3.Normalize(Vector3.Cross(B - A, C - A));
+    // public readonly Vector3 Center => *(Vector3*)&(A + B + C) / 3f;
 }
 
 
-[StructLayout(LayoutKind.Sequential)]
+// [StructLayout(LayoutKind.Sequential, Pack = 128)]
 public struct TriangleWide
 {
     public Vector3Wide A;
@@ -174,11 +174,11 @@ public struct TriangleWide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Broadcast(in Triangle triangle, out TriangleWide bundle)
+    public static void Broadcast(ref Triangle triangle, out TriangleWide bundle)
     {
-        Vector3Wide.Broadcast(triangle.A, out bundle.A);
-        Vector3Wide.Broadcast(triangle.B, out bundle.B);
-        Vector3Wide.Broadcast(triangle.C, out bundle.C);
+        Vector3Wide.Broadcast(Unsafe.As<Vector4, Vector3>(ref triangle.A), out bundle.A);
+        Vector3Wide.Broadcast(Unsafe.As<Vector4, Vector3>(ref triangle.B), out bundle.B);
+        Vector3Wide.Broadcast(Unsafe.As<Vector4, Vector3>(ref triangle.C), out bundle.C);
     }
 
 
@@ -192,11 +192,11 @@ public struct TriangleWide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void WriteSlot(in Triangle narrow, in int index, ref TriangleWide wide)
+    public static void WriteSlot(ref Triangle narrow, in int index, ref TriangleWide wide)
     {
-        Vector3Wide.WriteSlot(narrow.A, index, ref wide.A);
-        Vector3Wide.WriteSlot(narrow.B, index, ref wide.B);
-        Vector3Wide.WriteSlot(narrow.C, index, ref wide.C);
+        Vector3Wide.WriteSlot(Unsafe.As<Vector4, Vector3>(ref narrow.A), index, ref wide.A);
+        Vector3Wide.WriteSlot(Unsafe.As<Vector4, Vector3>(ref narrow.B), index, ref wide.B);
+        Vector3Wide.WriteSlot(Unsafe.As<Vector4, Vector3>(ref narrow.C), index, ref wide.C);
     }
 
 
@@ -205,7 +205,7 @@ public struct TriangleWide
     public static void ReadFirst(in TriangleWide bundle, out Triangle narrow)
     {
         // The calls to Vector3Wide.ReadFirst appear to not be inlined, and I currently can't figure out why
-
+        Unsafe.SkipInit(out narrow);
         narrow.A.X = bundle.A.X[0];
         narrow.A.Y = bundle.A.Y[0];
         narrow.A.Z = bundle.A.Z[0];

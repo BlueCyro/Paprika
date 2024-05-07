@@ -7,7 +7,7 @@ using BepuUtilities;
 namespace Paprika;
 
 
-public partial class PixelPusher
+public partial class PaprikaRenderer
 {
     public static readonly Vector<int> FullByte = new(255);
     public static readonly Vector<int> zeroInt = new();
@@ -163,9 +163,11 @@ public partial class PixelPusher
 
                 Vector<int> colResult = Vector.ConditionalSelect(mask & depthMask, wideCol, bufVec);
                 Vector<float> zResult = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
-                
-                *(Vector<int>*)colStart = colResult;
-                *(Vector<float>*)zStart = zResult;
+
+                colResult.Store(colStart);
+                zResult.Store(zStart);
+                //*(Vector<int>*)colStart = colResult;
+                //*(Vector<float>*)zStart = zResult;
             }
         }
     }

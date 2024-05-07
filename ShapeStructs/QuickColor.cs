@@ -42,7 +42,7 @@ public ref struct QuickColor
     public static void PackedFromVector3(in Vector3 rgb, out int color)
     {
         Vector3 mul = rgb * 255f;
-        color = PixelPusher.AllBits << 24 | (byte)mul.Z << 16 | (byte)mul.Y << 8 | (byte)mul.X;
+        color = PaprikaRenderer.AllBits << 24 | (byte)mul.Z << 16 | (byte)mul.Y << 8 | (byte)mul.X;
     }
 
 

@@ -11,7 +11,7 @@
             "args": [ "./Models/tinobed.glb" ],
             "preLaunchTask": {
                 "task": "build",
-                "type": "dotnet"
+                "type": "dotnet",
             },
             "program": "${workspaceFolder}/bin/Debug/net8.0/Software Renderer.dll",
             "cwd": "${workspaceFolder}"

@@ -6,13 +6,10 @@ namespace Paprika;
 // [StructLayout(LayoutKind.Sequential, Pack = 16)]
 public readonly struct RenderBuffer<T> : IRenderBuffer, IDisposable where T: unmanaged
 {
-    public unsafe T this[int index]
+    public ref T this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => *(Buffer.Pointer + index);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => *(Buffer.Pointer + index) = value;
+        get => ref Buffer[index];
     }
 
 

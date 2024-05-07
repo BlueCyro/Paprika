@@ -1,11 +1,16 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 
 namespace Paprika;
 
 public abstract class PixelRenderer<T> where T: IRenderer
 {
-    public Size2D FrameBufferSize => RenderOutput.FrameBufferSize;
+    public Size2D FrameBufferSize
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => RenderOutput.FrameBufferSize;
+    }
     public Camera MainCamera { get; private set; }
     public IRenderOutput<T> RenderOutput { get; private set; }
 

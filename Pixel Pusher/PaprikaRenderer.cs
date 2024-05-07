@@ -10,8 +10,6 @@ namespace Paprika;
 public partial class PaprikaRenderer(IRenderOutput<PaprikaRenderer> renderOutput) : PixelRenderer<PaprikaRenderer>(renderOutput), IRenderer
 {
     private DumbBuffer<TriangleWide> geometry;
-    private ulong frame;
-    private int renderedTris;
 
     public void DumpUploadGeometry(DumbBuffer<TriangleWide> buffer)
     {
@@ -60,84 +58,75 @@ public partial class PaprikaRenderer(IRenderOutput<PaprikaRenderer> renderOutput
         Matrix4x4Wide.Broadcast(mvpMatrix, out Matrix4x4Wide mvpMatrixWide); // Broadcast to wide matrix for triangle transformation
         Vector3Wide wideCameraPos = Vector3Wide.Broadcast(MainCamera.Position); // Broadcast to wide camera pos
 
-
-        
-        // Vector4Wide.Broadcast(new(FrameBufferSize.WidthSingle, FrameBufferSize.HeightSingle - 1, FrameBufferSize.WidthSingle, FrameBufferSize.HeightSingle - 1), out Vector4Wide frameBounds);
         Int4Wide.Broadcast(Vector128.Create(FrameBufferSize.Width, FrameBufferSize.Height - 1, FrameBufferSize.Width, FrameBufferSize.Height - 1), out Int4Wide frameBounds);
-        Vector<float> vecWidth = new Vector<float>(Vector<float>.Count);
-        Vector<float> vecWidthRecip = MathHelper.FastReciprocal(vecWidth);
         // Vector4Wide zero = new();
         Int4Wide zero = new();
-        EdgesVectorized edgesPointer = new();
+        EdgesVectorized edges = new();
 
 
         float dot;
 
 
-        unsafe
+        for (int i = 0; i < geometry.Length; i++)
         {
-            for (int i = 0; i < geometry.Length; i++)
+            TriangleWide curTri = geometry[i];
+
+            TriangleWide.GetCenter(curTri, out Vector3Wide center);
+            TriangleWide.GetNormal(curTri, out Vector3Wide normal);
+
+            Vector3Wide.Subtract(wideCameraPos, center, out Vector3Wide diff);
+            Vector3Wide.Dot(normal, Vector3Wide.Normalize(diff), out Vector<float> dots);
+
+            if (Vector.LessThanOrEqualAll(dots, Vector<float>.Zero))
+                continue;
+
+            TriangleWide.Transform(curTri, mvpMatrixWide, out TriangleWide transformed);
+            TriangleWide.ZDivide(transformed, out Vector3Wide oldZWide, out transformed);
+            // TriangleWide.GetBounds(transformed, out Vector3Wide bboxMinWide, out Vector3Wide bboxMaxWide);
+            TriangleWide.Get2DBounds(transformed, out Int4Wide bbox);
+
+            // Console.WriteLine($"V4 bbox: {result}");
+            // bool bboxCheck = 
+            //     Vector.GreaterThanOrEqualAll(bbox.X, zero.X) &&
+            //     Vector.GreaterThanOrEqualAll(bbox.Y, zero.Y) &&
+            //     Vector.LessThanOrEqualAll(bbox.Z, frameBounds.Z) &&
+            //     Vector.LessThanOrEqualAll(bbox.W, frameBounds.W);
+
+
+            // if (!bboxCheck)
+            //     continue;
+
+            // Vector4Wide.Scale(bbox, vecWidthRecip, out bbox);
+            // VectorHelpers.AlignWidth(bbox, out bbox);
+            // Vector4Wide.Scale(bbox, vecWidth, out bbox);
+            // VectorHelpers.VectorAlignWidth(bbox, out bbox);
+
+
+            Int4Wide.Max(bbox, zero, out Int4Wide result);
+            Int4Wide.Min(result, frameBounds, out result);
+            // bboxMinWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.X), wideFrameWidth);
+            // bboxMinWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.Y), wideFrameHeight);
+            // bboxMaxWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.X), wideFrameWidth);
+            // bboxMaxWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.Y), wideFrameHeight);
+
+            
+            for (int j = 0; j < Vector<float>.Count; j++)
             {
-                TriangleWide* curTri = geometry + i;
-
-                TriangleWide.GetCenter(*curTri, out Vector3Wide center);
-                TriangleWide.GetNormal(*curTri, out Vector3Wide normal);
-
-                Vector3Wide.Subtract(wideCameraPos, center, out Vector3Wide diff);
-                Vector3Wide.Dot(normal, Vector3Wide.Normalize(diff), out Vector<float> dots);
-
-                if (Vector.LessThanOrEqualAll(dots, Vector<float>.Zero))
-                    continue;
-
-                TriangleWide.Transform(*curTri, mvpMatrixWide, out TriangleWide transformed);
-                TriangleWide.ZDivide(transformed, out Vector3Wide oldZWide, out transformed);
-                // TriangleWide.GetBounds(transformed, out Vector3Wide bboxMinWide, out Vector3Wide bboxMaxWide);
-                TriangleWide.Get2DBounds(transformed, out Int4Wide bbox);
-
-                // Console.WriteLine($"V4 bbox: {result}");
-                // bool bboxCheck = 
-                //     Vector.GreaterThanOrEqualAll(bbox.X, zero.X) &&
-                //     Vector.GreaterThanOrEqualAll(bbox.Y, zero.Y) &&
-                //     Vector.LessThanOrEqualAll(bbox.Z, frameBounds.Z) &&
-                //     Vector.LessThanOrEqualAll(bbox.W, frameBounds.W);
-
-
-                // if (!bboxCheck)
+                // if (j != 7 || i != 0)
                 //     continue;
 
-                // Vector4Wide.Scale(bbox, vecWidthRecip, out bbox);
-                // VectorHelpers.AlignWidth(bbox, out bbox);
-                // Vector4Wide.Scale(bbox, vecWidth, out bbox);
-                // VectorHelpers.VectorAlignWidth(bbox, out bbox);
+                dot = dots[j];
+
+                // if (dot <= 0f)
+                //     continue;
+
+                TriangleWide.ReadSlot(ref transformed, j, out Triangle narrowTri);
+                QuickColor.PackedFromVector3(Vector3.One * dot, out int color);
+                Int4Wide.ReadSlot(ref result, j, out Vector128<int> bboxNarrow);
+                Vector3Wide.ReadSlot(ref oldZWide, j, out Vector3 oldZ);
 
 
-                Int4Wide.Max(bbox, zero, out Int4Wide result);
-                Int4Wide.Min(result, frameBounds, out result);
-                // bboxMinWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.X), wideFrameWidth);
-                // bboxMinWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.Y), wideFrameHeight);
-                // bboxMaxWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.X), wideFrameWidth);
-                // bboxMaxWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.Y), wideFrameHeight);
-
-
-                for (int j = 0; j < Vector<float>.Count; j++)
-                {
-                    // if (j != 7 || i != 0)
-                    //     continue;
-
-                    dot = dots[j];
-
-                    // if (dot <= 0f)
-                    //     continue;
-
-                    TriangleWide.ReadSlot(ref transformed, j, out Triangle triPointer);
-                    QuickColor.PackedFromVector3(Vector3.One * dot, out int color);
-                    Int4Wide.ReadSlot(ref result, j, out Vector128<int> bboxNarrow);
-                    Vector3Wide.ReadSlot(ref oldZWide, j, out Vector3 oldZ);
-
-
-                    DrawPinedaTriangleSIMD(triPointer, color, RenderOutput.PixelBuffer.Buffer, RenderOutput.ZBuffer.Buffer, bboxNarrow, oldZ, ref edgesPointer);
-                    renderedTris++;
-                }
+                DrawPinedaTriangleSIMD(narrowTri, color, RenderOutput.PixelBuffer.Buffer, RenderOutput.ZBuffer.Buffer, bboxNarrow, oldZ, ref edges);
             }
         }
     }

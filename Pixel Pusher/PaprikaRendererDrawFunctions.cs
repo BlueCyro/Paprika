@@ -118,7 +118,7 @@ public partial class PaprikaRenderer
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void DrawPinedaTriangleSIMD(
+    public void DrawPinedaTriangleSIMD(
         in Triangle tri,
         in int col,
         DumbBuffer<int> bufStart,
@@ -132,25 +132,24 @@ public partial class PaprikaRenderer
 
 
         int frameWidth = FrameBufferSize.Width;
-        int x = 0;
-
         for (int y = bbox[3]; y > bbox[1]; y--)
         {
             int row = y * frameWidth;
-            for (x = bbox[2]; x > bbox[0]; x -= Vector<int>.Count)
+            for (int x = bbox[2]; x > bbox[0]; x -= Vector<int>.Count)
             {
                 int vecStart = x - Vector<int>.Count + row;
                 int vecFloatStart = x - Vector<float>.Count + row;
-                
-                int* colStart = bufStart + vecStart;
-                float* zStart = zBufStart + vecFloatStart;
+
+                ref int colStart = ref bufStart[vecStart];
+                ref float zStart = ref zBufStart[vecFloatStart];
 
 
-                Vector<int> bufVec = Vector.Load(colStart);
-                Vector<float> bufVecZ = Vector.Load(zStart);
+                Vector<int> bufVec = Vector.LoadUnsafe(ref colStart);
+                Vector<float> bufVecZ = Vector.LoadUnsafe(ref zStart);
 
 
                 edges.IsInside(x, y, out Vector3Wide eN);
+
 
                 RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, eN, out Vector<float> bigDepth);
                 Vector<int> depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
@@ -164,10 +163,8 @@ public partial class PaprikaRenderer
                 Vector<int> colResult = Vector.ConditionalSelect(mask & depthMask, wideCol, bufVec);
                 Vector<float> zResult = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
 
-                colResult.Store(colStart);
-                zResult.Store(zStart);
-                //*(Vector<int>*)colStart = colResult;
-                //*(Vector<float>*)zStart = zResult;
+                colResult.StoreUnsafe(ref colStart);
+                zResult.StoreUnsafe(ref zStart);
             }
         }
     }

@@ -1,4 +1,3 @@
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -56,13 +55,13 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
     }
 
 
-    public readonly T this[int index]
+    public ref T this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => *(Pointer + index);
+        get => ref Unsafe.Add(ref Unsafe.AsRef<T>(Pointer), index);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => *(Pointer + index) = value;
+        // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // set => ref Unsafe.AsRef<T>(Pointer + index) = ref value;
     }
 
 
@@ -74,7 +73,7 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
 
         // int alignment = pack > 0 ? pack : 16; // I need to research memory alignment better, will test this on other systems
         // int alignedByteSize = (int)(Math.Ceiling(sizeof(T) / (double)alignment) * alignment);
-        int alignment = typeof(T).IsPrimitive ? sizeof(T) : 256;
+        int alignment = typeof(T).IsPrimitive ? 16 : 256;
         
         int byteLen = sizeof(T) * Length;
         // LengthBytes = (nuint)(alignedByteSize * Length);
@@ -87,7 +86,7 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
 
 
         Pointer = (T*)NativeMemory.AlignedAlloc(LengthBytes, (nuint)alignment);
-        IntPtr pointerView = new IntPtr(Pointer);
+        IntPtr pointerView = new(Pointer);
         Console.WriteLine($"Aligning on: {pointerView} (Hex: {pointerView:x}) ({alignment}, {pointerView % alignment})");
     }
 

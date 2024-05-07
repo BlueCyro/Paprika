@@ -30,7 +30,7 @@ public ref struct EdgesVectorized
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void IsInside(in int startX, in int startY, out Vector3Wide eN)
+    public void IsInside(in int startX, in int startY, out Vector3Wide eN)
     {
         Unsafe.SkipInit(out Vector<float> Row);
 

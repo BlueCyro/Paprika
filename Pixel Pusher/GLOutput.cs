@@ -123,7 +123,9 @@ public class GLOutput<T> : IRenderOutput<T> where T: IRenderer
     }
 
 
-
+    double avg;
+    ulong frame;
+    int renderedTris;
     private void Update(double delta)
     {
         // Program.DEBUG_ReAllocateDumbBuffer();
@@ -157,18 +159,21 @@ public class GLOutput<T> : IRenderOutput<T> where T: IRenderer
         PixelBuffer.Buffer.Clear();
         ZBuffer.Buffer.Fill(float.MaxValue);
 
+        Program.Timer.Start();
         CurrentRenderer.RenderFrame();
+        Program.Timer.Stop();
 
-        // avg += delta;
-        // ulong frameCount = 20;
-        // if (frame++ % frameCount == 0)
-        // {
-        //     Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}, Tris: {renderedTris}");
-        //     // Console.WriteLine($"Camera pos: {MainCamera.Position}, Camera rot {MainCamera.Rotation}");
-        //     avg = 0;
-        // }
+        avg += Program.Timer.ElapsedMilliseconds;
+        ulong frameCount = 20;
+        if (++frame % frameCount == 0)
+        {
+            Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}, Tris: {renderedTris}");
+            // Console.WriteLine($"Camera pos: {MainCamera.Position}, Camera rot {MainCamera.Rotation}");
+            avg = 0;
+        }
 
         PushPixels();
+        Program.Timer.Reset();
     }
 
 

@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Paprika.Benchmarks</RootNamespace>
+
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Renderer\Paprika.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+    <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.13.12" />
+  </ItemGroup>
+
+  
+</Project>

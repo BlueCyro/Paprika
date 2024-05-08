@@ -28,6 +28,8 @@
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031" />
     <PackageReference Include="Silk.NET" Version="2.20.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.4" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+    <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.13.12" />
   </ItemGroup>
 
 </Project>

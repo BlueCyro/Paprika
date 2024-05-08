@@ -3,19 +3,11 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Diagnostics.Windows.Configs;
 using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Diagnosers;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Jobs;
-using Microsoft.Extensions.Logging;
-using BenchmarkDotNet.Loggers;
-using BenchmarkDotNet.Columns;
-using BenchmarkDotNet.Exporters;
 using Paprika;
 
-namespace Paprika.Benchmarks;
+// namespace Paprika.Benchmarks;
 
 
 

@@ -25,6 +25,11 @@ public class Program
     {
         Console.WriteLine($"Using vector size of {Vector<byte>.Count * 8} bits for rasterization");
 
+        // if (args.Length == 0 || string.IsNullOrEmpty(args[0]))
+        // {
+        //     Console.WriteLine($"Please choose a valid model");
+        //     return;
+        // }
 
         if (Avx.IsSupported)
             Console.WriteLine("Avx supported");
@@ -48,45 +53,43 @@ public class Program
         {
             Console.WriteLine($"EdgesVectorized width is: {sizeof(EdgesVectorized)}");
         }
-
+        
+        // Model = Path.GetFullPath(args[0]);
+        // Console.WriteLine(Model);
         BenchmarkRunner.Run<RenderBenchmark>();
     }
 }
 
 
-// [MemoryDiagnoser]
-// [JitStatsDiagnoser]
-// [EtwProfiler]
-// [HardwareCounters(HardwareCounter.BranchMispredictions)]
 
-
-//[MemoryDiagnoser]
-// [DisassemblyDiagnoser]
 [SimpleJob(RunStrategy.Throughput, 25)]
+// [SimpleJob(RunStrategy.Throughput)]
 public class RenderBenchmark
 {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     BenchmarkOutput<PaprikaRenderer> benchmarkOutput;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-    public const string IMAGE_OUTPUT_FOLDER = "C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Paprika.Benchmarks/OutputImage";
-    public const string MODEL_INPUT_FOLDER = "C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Renderer/Models";
-    public string ModelName = "tinobed.glb";
+    // public const string IMAGE_OUTPUT_FOLDER = "C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Paprika.Benchmarks/OutputImage";
 
 
     public int Width = 1280;
     public int Height = 1024;
 
+    // [Params(8, 16, 32, 64, 128, 256)]
+    public int Alignment { get; set; } = 32;
 
 
-    public RenderBenchmark()
+
+    [GlobalSetup]
+    public void Setup()
     {
-        benchmarkOutput = new(Width, Height);
+        benchmarkOutput = new(Width, Height, Alignment);
 
         DumbUploader uploader = new();
         Console.WriteLine("Starting geometry uploader...");
-        string modelPath = Path.Combine(MODEL_INPUT_FOLDER, ModelName);
-        uploader.Upload(modelPath);
+        // Console.WriteLine($"Uploading {Program.Model}");
+        uploader.Upload("C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Model/tinobed.glb", Alignment);
         Console.WriteLine("Done!");
         
         benchmarkOutput.CurrentRenderer.MainCamera.Position = new(0.51144695f, 2.4718034f, 8.403356f);
@@ -144,12 +147,12 @@ public class BenchmarkOutput<T> : IRenderOutput<T> where T: IRenderer
 
 
 
-    public BenchmarkOutput(int width = 1280, int height = 1024)
+    public BenchmarkOutput(int width = 1280, int height = 1024, int alignment = 32)
     {
         Console.WriteLine($"Setting up bench for: {width}, {height}");
-        pixelBuffer1 = new(width, height);
-        pixelBuffer2 = new(width, height);
-        ZBuffer = new(width, height);
+        pixelBuffer1 = new(width, height, alignment);
+        pixelBuffer2 = new(width, height, alignment);
+        ZBuffer = new(width, height, alignment);
 
         CurrentRenderer = (T?)Activator.CreateInstance(typeof(T), [ this ]) ?? throw new Exception($"Failed to initialize instance of {typeof(T)}!");
     }

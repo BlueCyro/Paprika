@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Paprika.Benchmarks</RootNamespace>
 
+    <IncludeSymbols>true</IncludeSymbols>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>

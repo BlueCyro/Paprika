@@ -14,10 +14,10 @@ public readonly struct RenderBuffer<T> : IRenderBuffer, IDisposable where T: unm
 
 
 
-    public RenderBuffer(int width, int height)
+    public RenderBuffer(int width, int height, int alignment = 32)
     {
         Size = new(width, height);
-        Buffer = new(width * height);
+        Buffer = new(width * height, alignment);
     }
 
 

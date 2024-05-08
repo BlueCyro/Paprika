@@ -67,7 +67,7 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
 
 
 
-    public DumbBuffer(int count)
+    public DumbBuffer(int count, int alignment = 32)
     {
         Length = count;
         // int pack = typeof(T).StructLayoutAttribute?.Pack ?? 0;
@@ -75,13 +75,13 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
         // int alignment = pack > 0 ? pack : 16; // I need to research memory alignment better, will test this on other systems
         // int alignedByteSize = (int)(Math.Ceiling(sizeof(T) / (double)alignment) * alignment);
         // int alignment = typeof(T).IsPrimitive ? 16 : 256;
-        int alignment = Vector<byte>.Count * 2;
+        // int alignment = Vector<byte>.Count * 2;
         
         int byteLen = sizeof(T) * Length;
         // LengthBytes = (nuint)(alignedByteSize * Length);
         LengthBytes = (nuint)byteLen;
         // LengthBytes = (nuint)(Math.Ceiling((float)byteLen / Vector<T>.) * alignment);
-        Console.WriteLine($"Instantiating {typeof(T)} buffer with length of: {Length}, (Type size: {sizeof(T)}), (Bytes: {byteLen}), (Real: {LengthBytes})");
+        Console.WriteLine($"Instantiating {typeof(T)} buffer with length of: {Length}, (Alignment: {alignment}), (Type size: {sizeof(T)}), (Bytes: {byteLen}), (Real: {LengthBytes})");
 
         // nuint alignment = 64;
         // nuint alignment = (nuint)Math.Pow(2, Math.Round(Math.Log(Unsafe.SizeOf<T>()) / Math.Log(2)));

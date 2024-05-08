@@ -145,7 +145,7 @@ public class DumbUploader
 
 
 
-    public bool Upload(string path)
+    public bool Upload(string path, int alignment = 32)
     {
         if (!Directory.Exists(Path.GetDirectoryName(path)) || !File.Exists(path))
         {
@@ -196,7 +196,7 @@ public class DumbUploader
 
 
         // WideUploaded = new(widebatches.Count);
-        WideUploaded = new(widebatches.Count);
+        WideUploaded = new(widebatches.Count, alignment);
 
         for (int i = 0; i < widebatches.Count; i++)
         {

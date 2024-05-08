@@ -125,7 +125,7 @@ public partial class PaprikaRenderer(IRenderOutput<PaprikaRenderer> renderOutput
                 Int4Wide.ReadSlot(ref result, j, out Vector128<int> bboxNarrow);
                 Vector3Wide.ReadSlot(ref oldZWide, j, out Vector3 oldZ);
 
-
+                
                 DrawPinedaTriangleSIMD(narrowTri, color, RenderOutput.PixelBuffer.Buffer, RenderOutput.ZBuffer.Buffer, bboxNarrow, oldZ, ref edges);
             }
         }

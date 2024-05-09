@@ -101,7 +101,7 @@ public struct TriangleWide
         ref Vector2Wide boundsMin = ref bounds.AsVector2();
         ref Vector2Wide boundsMax = ref Unsafe.Add(ref bounds.AsVector2(), 1);
 
-        // Using min like this rather than using two out parameters yields a shorter method from the JIT
+        // Using min/max like this rather than using two out parameters yields a shorter method from the JIT
         VectorHelpers.Min(VectorHelpers.Min(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMin);
 
         VectorHelpers.Max(VectorHelpers.Max(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMax);
@@ -116,7 +116,7 @@ public struct TriangleWide
         ref Vector2Wide boundsMin = ref boundsSingle.AsVector2();
         ref Vector2Wide boundsMax = ref Unsafe.Add(ref boundsSingle.AsVector2(), 1);
 
-        // Using min like this rather than using two out parameters yields a shorter method from the JIT
+        // Using min/max like this rather than using two out parameters yields a shorter method from the JIT
         VectorHelpers.Min(VectorHelpers.Min(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMin);
 
         VectorHelpers.Max(VectorHelpers.Max(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMax);
@@ -184,7 +184,7 @@ public struct TriangleWide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ReadSlot(ref TriangleWide bundle, in int index, out Triangle narrow)
+    public static void ReadSlot(ref TriangleWide bundle, int index, out Triangle narrow)
     {
         ReadFirst(GatherScatter.GetOffsetInstance(ref bundle, index), out narrow);
     }
@@ -192,7 +192,7 @@ public struct TriangleWide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void WriteSlot(ref Triangle narrow, in int index, ref TriangleWide wide)
+    public static void WriteSlot(ref Triangle narrow, int index, ref TriangleWide wide)
     {
         Vector3Wide.WriteSlot(Unsafe.As<Vector4, Vector3>(ref narrow.A), index, ref wide.A);
         Vector3Wide.WriteSlot(Unsafe.As<Vector4, Vector3>(ref narrow.B), index, ref wide.B);

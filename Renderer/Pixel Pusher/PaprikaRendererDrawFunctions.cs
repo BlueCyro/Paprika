@@ -120,28 +120,34 @@ public partial class PaprikaRenderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawPinedaTriangleSIMD(
         in Triangle tri,
-        in int col,
-        DumbBuffer<int> bufStart,
-        DumbBuffer<float> zBufStart,
+        int col,
+        in DumbBuffer<int> bufStart,
+        in DumbBuffer<float> zBufStart,
         in Vector128<int> bbox,
-        in Vector3 oldZ,
-        ref EdgesVectorized edges)
+        in Vector3 oldZ/*,
+        ref EdgesVectorized edges*/)
     {
         Vector<int> wideCol = new(col);
-        edges.UpdateEdges(tri.A, tri.B, tri.C);
+        EdgesVectorized edges = new(tri.A, tri.B, tri.C);
+        // edges.UpdateEdges(tri.A, tri.B, tri.C);
+
+        int minX = bbox[0];
+        int minY = bbox[1];
+        int maxX = bbox[2];
+        int maxY = bbox[3];
 
 
         int frameWidth = FrameBufferSize.Width;
-        for (int y = bbox[3]; y > bbox[1]; y--)
+        for (int y = maxY; y > minY; y--)
         {
             int row = y * frameWidth;
-            for (int x = bbox[2]; x > bbox[0]; x -= Vector<int>.Count)
+            for (int x = maxX; x > minX; x -= Vector<int>.Count)
             {
                 int vecStart = x - Vector<int>.Count + row;
-                int vecFloatStart = x - Vector<float>.Count + row;
+                // int vecFloatStart = x - Vector<float>.Count + row;
 
                 ref int colStart = ref bufStart[vecStart];
-                ref float zStart = ref zBufStart[vecFloatStart];
+                ref float zStart = ref zBufStart[vecStart];
 
 
                 Vector<int> bufVec = Vector.LoadUnsafe(ref colStart);
@@ -151,7 +157,7 @@ public partial class PaprikaRenderer
                 edges.IsInside(x, y, out Vector3Wide eN);
 
 
-                RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, eN, out Vector<float> bigDepth);
+                RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, in eN, out Vector<float> bigDepth);
                 Vector<int> depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
 
 

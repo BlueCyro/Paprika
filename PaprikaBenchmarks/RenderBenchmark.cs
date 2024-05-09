@@ -31,7 +31,7 @@ public class RenderBenchmark
         DumbUploader uploader = new();
         Console.WriteLine("Starting geometry uploader...");
         // Console.WriteLine($"Uploading {Program.Model}");
-        uploader.Upload("C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Model/tinobed.glb", Alignment);
+        uploader.Upload("C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Renderer/Model/tinobed.glb", Alignment);
         Console.WriteLine("Done!");
         
         benchmarkOutput.CurrentRenderer.MainCamera.Position = new(0.51144695f, 2.4718034f, 8.403356f);

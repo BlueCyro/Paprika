@@ -4,7 +4,6 @@ using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
-
 namespace Paprika;
 
 
@@ -159,21 +158,21 @@ public class GLOutput<T> : IRenderOutput<T> where T: IRenderer
         PixelBuffer.Buffer.Clear();
         ZBuffer.Buffer.Fill(float.MaxValue);
 
-        Program.Timer.Start();
+        // Program.Timer.Start();
         CurrentRenderer.RenderFrame();
-        Program.Timer.Stop();
+        // Program.Timer.Stop();
 
-        avg += Program.Timer.ElapsedMilliseconds;
-        ulong frameCount = 20;
-        if (++frame % frameCount == 0)
-        {
-            Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}, Tris: {renderedTris}");
-            // Console.WriteLine($"Camera pos: {MainCamera.Position}, Camera rot {MainCamera.Rotation}");
-            avg = 0;
-        }
+        // avg += Program.Timer.ElapsedMilliseconds;
+        // ulong frameCount = 20;
+        // if (++frame % frameCount == 0)
+        // {
+        //     Console.WriteLine($"[Paprika] Took (avg): {avg / frameCount:F3}ms, Frame: {frame}, Tris: {renderedTris}");
+        //     // Console.WriteLine($"Camera pos: {MainCamera.Position}, Camera rot {MainCamera.Rotation}");
+        //     avg = 0;
+        // }
 
         PushPixels();
-        Program.Timer.Reset();
+        // Program.Timer.Reset();
     }
 
 

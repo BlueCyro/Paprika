@@ -30,7 +30,7 @@ public static class RasterHelpers
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void InterpolateBarycentric(in float one, in float two, in float three, in Vector3Wide bary, out Vector<float> interpolated)
+    public static void InterpolateBarycentric(float one, float two, float three, in Vector3Wide bary, out Vector<float> interpolated)
     {
         var oneMul = one * bary.X;
         var twoMul = two * bary.Y;

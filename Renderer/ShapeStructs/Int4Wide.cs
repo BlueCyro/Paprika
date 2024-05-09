@@ -52,6 +52,16 @@ public struct Int4Wide
 
 
 
+    public static void Clamp(in Int4Wide value, in Int4Wide min, in Int4Wide max, out Int4Wide clamped)
+    {
+        clamped.X = Vector.Max(min.X, Vector.Min(value.X, max.X));
+        clamped.Y = Vector.Max(min.Y, Vector.Min(value.Y, max.Y));
+        clamped.Z = Vector.Max(min.Z, Vector.Min(value.Z, max.Z));
+        clamped.W = Vector.Max(min.W, Vector.Min(value.W, max.W));
+    }
+
+
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void ReadSlot(ref Int4Wide bundle, in int index, out Vector128<int> narrow)
     {

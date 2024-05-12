@@ -1,0 +1,205 @@
+# Paprika restructure
+
+Up until this point, I've been getting familiar with the methodology behind rasterizing triangles and need to restructure how things are done to provide a better framework
+
+
+# What to restructure?
+
+Pixel pusher is mostly okay, but it needs a few more things.
+
+* Shader objects, how to define?
+    * Interface-implementing structs?
+        + Provides unique code paths for each shader object
+        + Allows self-containment for varying types of rendering behavior
+        * How is rendering behavior defined?
+            * Currently, rasterizer chooses pixels and performs inline behavior to set them
+            * Instead of inline behavior, triangle pixels should be passed to shader objects
+                * How to define pixel choosing behavior? Vertex shader?
+                    * Make vertex shader pre-process incoming triangles to prepare for raster
+                    + Vertex shader performs necessary transformations, can attach attributes to triangles
+                    * How to define attributes???
+                        + Vertex shaders implement a default "IVertexShader" interface to mark them as such
+                        + Can implement multiple interfaces which define further attributes
+                        ++ Later-pipeline shaders can take potentially any IVertexShader, but only use attributes that are available
+                            -- This requires testing the interface, which may not be implemented. Potential wasted work per triangle, will add up with potential millions.
+                                * Does this actually matter? Maybe not. Usually vertex shaders are made for the fragment shader(s) they're targetting.
+                                @ Exploration is required, will test this first.
+
+                + Shader objects define callbacks that are executed when they receive a triangle pixel
+                * What to pass to pixel callback? Data object? What form?
+                    * Should probably be some form of base interface implementation, still struct (potentialy ref struct for lightness?)
+                        - Ref struct removes interfaces (does this matter still? probably not)
+                        * Normal structs could also be allocated on the stack, but could leak to heap
+                    * What if it wasn't an interface and was instead a generic ref struct that is typed with another struct?
+                        + Provides a standardized way to pack data to the fragment shader
+                        + Fragment shader can then unpack payload with generic function defined on ref struct
+                        + Reinterpretation of span as T guarantees payload to be on stack - can be put on heap when required
+                        + T can then be an interfaced struct if need-be for further standardization
+                        --- Spans cannot be overlaid on ref structs, but that's actually okay. The ref struct is just meant as a transfer medium
+
+
+
+# How to register geometry with rendering context?
+
+* Extensible mesh class? What do we even put on it?
+    * What base features would be required to render a model?
+        = Triangles, required
+            * Although maybe not since point clouds exist? Maybe we just don't care and handle these in a vertex shader instead
+        = UVs of each triangle point
+        = Material index of each triangle
+            ! We'll need to define materials at some point
+        = Maybe more properties as I think of them, adding properties should be easy with this pipeline
+
+
+
+
+# It's rewind time (breakdown of high-level idea)
+
+1) Mesh geometry is read from disk and stored in a mesh class
+2) Mesh class describes world transform of model
+3) Vertex shader reads mesh data, decides what attributes to take, packages data into custom struct implementation defined by interface, used as generic type in ref struct carrier
+4) Package is post-processed by rasterizer to transform points into screen coordinates and interpolate all lerpable values
+5) Fragment shader receives per-pixel interpolated data, decides what color the pixel is based on this data
+
+
+# Where do we start?
+
+- Probably restructure the pixel pusher loop a little bit and move a few things to be internal.
+- Remove event-based code execution, start making mesh class. Figure out what vertex shader needs for interface.
+    * Mesh class can be big and slow, upload will handle boiling down everything into efficient data structures
+    * What does a vertex have on it?
+        - Position
+        - UV
+        - Normal
+        - Attributes
+            * Attributes are defined as one or more primitive types
+            * Attributes are interpolated
+                ! Only floating point types!!!
+            * Attributes can optionally be constant; non-interpolated
+        - Vertex type
+            * Keeping it simple: Either point or triangle, assumed triangle unless queried.
+        - Material index
+    * Vertices are stored in slow mesh format
+        - Vertex data is sorted by material index
+        - Vertex shader reads incoming vertices
+        - Attributes are read or added depending on type of vertex shader
+        - Attributes are stored in user-defined attribute struct
+        - Attributes are then passed via ref struct container to rasterizer for fragmenting
+    
+    * Triangle is generated from vertices.
+    * What does a triangle have on it?
+        - 3 vertices
+        - Implicit normal
+        - Edges
+        - Edge function bases
+        ? Maybe make it generic for 2D and 3D?
+
+
+
+# How should a camera be defined?
+
+* Defines view and projection matrices
+    - Resolution, FOV, Position, Rotation
+* What else should it define?
+    * Perhaps instead leave resolution to render buffer?
+        - Render buffer is just a big array of value types that hold pixels
+        - Dumb object, doesn't need lots of complexity
+        - Could literally just be generic struct that defines width, height, and array of given value type
+    * Generic? Should it define a rendering context by which to render in?
+        + This could mean that contexts are modular
+        + Rendering contexts (different rasterizers, stylized, raytracers, etc.) could be defined per-camera
+        ? What is a context?
+            * Rendering context defines method by which the scene is rendered
+            * Does not contain scene itself, only changes how it is viewed
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------
+
+
+It's been a while, and much of these previous notes don't really apply anymore.
+
+Currently, there's an issue where the performance of the program varies between runs. It either performs well, or performs bad for some reason.
+
+Part of this is likely due to the current structure of the program. Let's seek to rectify some of this once and for all. There's some mishmash
+functionality that needs to be separated and compartmentalized. Certain methods of accessing stuff (namely interfaces causing virtual dispatch overhead)
+are not ideal and could be optimized. We're gonna subdivide this from the top-down and dice it up into nice, easily digestible, bite-sized pieces.
+
+
+# Render output
+
+This is how final data from the renderer will be viewed and can represented in many different ways (ascii, OpenGL, Vulkan, some other way to display the data, etc.)
+
+What should the contract for render output look like? What attributes are most important?
+
+- Is itself a struct, further type specialization, avoids virtual dispatch like the plague
+- Render resolution
+    - Width, height, probably can just use Size2D here
+- Color buffer (Required - potentially referenced from renderers?)
+- Generic type 'TRenderer' constrained to struct, IRenderer; ensures JIT type specialization
+- 'Update' function; used to update internal renderer state with whatever is required by the implementation
+- Optional callback for resolution resizing
+- Can be used for cameras, actually. Cameras can themselves be renderers that don't do anything to the buffer
+    ! Not really, this doesn't make a lot of sense to make them their own rendering output. They should be used by one instead.
+
+
+# Renderer
+
+The renderer handles the method by which pixels are written to the final color buffer.
+
+What should the contract for renderers look like?
+
+- The renderer must define at least one color buffer, with additional buffers being left up to implementation
+- 'SetupBuffers' function to set up the renderer's internal buffers
+    - Takes 'in' Size2D as Width/Height parameter for buffers
+- 'RenderFrame' function to update internal state of renderer
+    - Passes out final color buffer by ref
+- Defines at least one Camera as 'MainCamera' property
+- Other cameras left up to implementation
+- Geometry type left up to implementation, but defined by second generic argument 'TGeo'
+- Geometry uploads constrained to struct, 'TGeo' types
+- Boolean indicator 'CanUploadGeometry' to signal whether this renderer supports geometry uploads.
+
+
+# Cameras
+
+Cameras are essentially just markers that determine where a viewport is
+
+What contract should cameras follow?
+
+- FOV
+- TRS Matrix (Position/Rotation/Scale)
+- View/Projection/Combined matrices for projection of geo
+- Pos/Rot/Scale properties internally update the TRS matrix
+- Constrained to TRenderer, TPixel to indicate type. Optionally includes render buffer
+
+
+
+# What would example implementation be like?
+
+This should ideally be practical to more use cases than just software rendering to a specific type of graphical output. What if I wanted to output lines? Or ray tracing?
+
+
+Example RT renderer:
+
+- Already, geometry probably needs to be renderer-agnostic
+    - Where should it be stored??
+        - Could make it more of a system than a self-contained thing
+        - Generic static class?
+            - Could provide type-safe way to store geometry of a given type
+            - This might actually be a really good idea
+            - No interfaces, just one static class with generic arguments
+            - Make the type system do my bidding :)
+            ! Could lead to complexities with multithreading, specifically renderers on multiple threads
+                + Geo can be read-only to avoid this? It's a renderer, it should just read data, not write it to the heap
+
+    - How is geometry stored?
+        - This is tricky
+        - Dumb aligned buffer of whatever struct type I guess
+        - This is something I'll need to expand later. Just leave it at this for now
+
+    - How do renderers define what geometry they're compatible with?
+        - Defined in implementation details
+        - Can access whatever geo they need from static geometry holder class
+    

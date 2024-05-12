@@ -1,0 +1,97 @@
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // public unsafe void DrawPinedaTriangle(in Triangle tri, in int col) // Slow, but reliable
+    // {
+    //     VectorHelpers.GetTriBounds(tri, Vector2.Zero, FrameBufferSize - Vector2.One, out var bboxMin, out var bboxMax);
+    //     Bounds2D triBounds = new(bboxMin, bboxMax);
+    //     Lines triLines = new(tri.v1, tri.v2, tri.v3);
+
+    //     Vector3 e_n;
+    //     bool test;
+    //     int minX = (int)triBounds.Min.X;
+    //     int minY = (int)triBounds.Min.Y;
+    //     int maxX = (int)triBounds.Max.X;
+    //     int maxY = (int)triBounds.Max.Y;
+
+    //     bool stop = false;
+    //     int length = maxX - minX + 1;
+
+        
+    //     int[] pBuf = PixelBuffer;
+    //     float[] zBuf = ZBuffer;
+
+    //     for (int y = minY; y <= maxY; y++)
+    //     {
+    //         int start = minX + y * FrameBufferSize.Width;
+
+    //         Span<int> row = pBuf.AsSpan().Slice(start, length);
+    //         Span<float> depthRow = zBuf.AsSpan().Slice(start, length);
+    //         int x = 0;
+    //         while (x <= length)
+    //         {
+    //             e_n = tri.Bary(minX + x, y, triLines);
+    //             test = e_n.X >= 0f && e_n.Y >= 0f && e_n.Z >= 0f && x < length;
+    //             if (test)
+    //             {
+    //                 float depth = tri.p1.Z * e_n.X + tri.p2.Z * e_n.Y + tri.p3.Z * e_n.Z;
+
+    //                 if (depthRow[x] < depth)
+    //                 {
+    //                     row[x] = col;
+    //                     depthRow[x] = depth;
+    //                 }
+    //                 x++;
+    //                 stop = true;
+    //                 continue;
+    //             }
+
+    //             if (stop)
+    //                 break;
+    //             x++;
+    //         }
+    //         stop = false;
+    //     }
+    // }
+
+
+
+
+    public void DrawLine(in Vector3 from, in Vector3 to, in int col)
+    {
+        var diff = to - from;
+        var abs = Vector3.Abs(diff);
+        float step = MathF.Max(abs.X, abs.Y);
+        
+        diff /= step;
+        var start = from;
+
+        for (int i = 0; i < step; i++)
+        {
+            SetPixel(col, start.X, start.Y);
+            start += diff;
+        }
+    }
+
+
+
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // public void DrawTriangle(in Triangle tri, in int col)
+    // {
+    //     Vector2 max = FrameBufferSize - Vector2.One;
+    //     Vector2 v1Clamp = Vector2.Clamp(tri.v1, Vector2.Zero, max);
+    //     Vector2 v2Clamp = Vector2.Clamp(tri.v2, Vector2.Zero, max);
+    //     Vector2 v3Clamp = Vector2.Clamp(tri.v3, Vector2.Zero, max);
+    //     DrawLine(v1Clamp, v2Clamp, col);
+    //     DrawLine(v2Clamp, v3Clamp, col);
+    //     DrawLine(v3Clamp, v1Clamp, col);
+    // }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DrawBounds(Vector3 min, Vector3 max, in int col)
+    {
+        DrawLine(min, new(min.X, max.Y, 0), col);
+        DrawLine(min, new(max.X, min.Y, 0), col);
+        DrawLine(max, new(min.X, max.Y, 0), col);
+        DrawLine(max, new(max.X, min.Y, 0), col);
+    }

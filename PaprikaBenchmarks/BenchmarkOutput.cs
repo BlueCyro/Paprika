@@ -3,21 +3,28 @@ using Paprika;
 
 namespace PaprikaBenchmarks;
 
-public class BenchmarkOutput<T> : IRenderOutput<T> where T: IRenderer
+public class BenchmarkOutput : IRenderOutput<PaprikaRenderer, int>
 {
-    public RenderBuffer<int> PixelBuffer => bufferSwap ? pixelBuffer2 : pixelBuffer1;
-    public Span<byte> PixelBufferBytes => MemoryMarshal.Cast<int, byte>(PixelBuffer.Buffer.Span);
-    public RenderBuffer<float> ZBuffer { get; private set; }
-    public RenderBuffer<int> pixelBuffer1;
-    public RenderBuffer<int> pixelBuffer2;
+    public ref RenderBuffer<int> PixelBuffer => ref bufferSwap ? ref pixelBuffer1 : ref pixelBuffer2;
+    RenderBuffer<int> pixelBuffer1;
+    RenderBuffer<int> pixelBuffer2;
     
-    
-    public Size2D FrameBufferSize { get; private set; }
-    public T CurrentRenderer { get; private set; }
-    public IRenderer CurrentIRenderer => CurrentRenderer;
+
+
+    public Size2D Resolution { get; private set; }
+
+
+
+    public ref PaprikaRenderer CurrentRenderer => ref currentRenderer;
+    PaprikaRenderer currentRenderer;
+
 
 
     private bool bufferSwap = false;
+
+
+    
+    public PaprikaCamera MainCamera;
 
 
 
@@ -26,9 +33,8 @@ public class BenchmarkOutput<T> : IRenderOutput<T> where T: IRenderer
         Console.WriteLine($"Setting up bench for: {width}, {height}");
         pixelBuffer1 = new(width, height, alignment);
         pixelBuffer2 = new(width, height, alignment);
-        ZBuffer = new(width, height, alignment);
 
-        CurrentRenderer = (T?)Activator.CreateInstance(typeof(T), [ this ]) ?? throw new Exception($"Failed to initialize instance of {typeof(T)}!");
+        currentRenderer.ValidateBuffers(pixelBuffer1, alignment);
     }
 
 
@@ -39,10 +45,13 @@ public class BenchmarkOutput<T> : IRenderOutput<T> where T: IRenderer
 
     public void Update()
     {
-        PixelBuffer.Buffer.Clear();
-        ZBuffer.Buffer.Fill(float.MaxValue);
-
-        CurrentRenderer.RenderFrame();
+        CurrentRenderer.RenderFrame(PixelBuffer, MainCamera);
         bufferSwap = !bufferSwap;
+    }
+
+
+    public void ResolutionResize()
+    {
+
     }
 }

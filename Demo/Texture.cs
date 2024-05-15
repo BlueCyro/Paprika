@@ -38,7 +38,7 @@ public class Texture : IDisposable
     public unsafe Texture(GL gl, Span<byte> data, uint width, uint height)
     {
         _gl = gl;
-
+        Console.WriteLine($"Date length is: {data.Length}");
         _handle = _gl.GenTexture();
         Bind();
 
@@ -70,6 +70,21 @@ public class Texture : IDisposable
         }
     }
 
+
+    public unsafe void Update<T>(Span<T> data, uint width, uint height)
+
+    where T: unmanaged
+    {
+        fixed (void* newImg = &data[0])
+        {
+            // _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, (void*) 0);
+            _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, newImg);
+            // SetParameters();
+        }
+    }
+
+
+
     public unsafe void Update(void* data, uint width, uint height)
     {
         _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
@@ -90,42 +105,5 @@ public class Texture : IDisposable
     public void Dispose()
     {
         _gl.DeleteTexture(_handle);
-    }
-}
-
-
-
-public class BufferObject<TDataType> : IDisposable where TDataType : unmanaged
-{
-    private uint _handle;
-    private BufferTargetARB _bufferType;
-    private GL _gl;
-
-    public unsafe BufferObject(GL gl, Span<TDataType> data, BufferTargetARB bufferType)
-    {
-        _gl = gl;
-        _bufferType = bufferType;
-
-        _handle = _gl.GenBuffer();
-        Bind();
-        fixed (void* d = data)
-        {
-            _gl.BufferData(bufferType, (nuint) (data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
-        }
-    }
-
-    public void Bind()
-    {
-        _gl.BindBuffer(_bufferType, _handle);
-    }
-
-    public void Unbind()
-    {
-        _gl.BindBuffer(_bufferType, 0);
-    }
-
-    public void Dispose()
-    {
-        _gl.DeleteBuffer(_handle);
     }
 }

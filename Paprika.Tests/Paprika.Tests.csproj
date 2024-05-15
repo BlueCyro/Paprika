@@ -18,7 +18,12 @@
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
-    <ProjectReference Include="..\Renderer\Paprika.csproj" />
+    <ProjectReference Include="..\Paprika\Paprika.csproj" />
   </ItemGroup>
+
+
+  <Target Name="ZipRelease" AfterTargets="Build">
+    <Copy SourceFiles="../Model/tinobed.glb" DestinationFolder="$(OutDir)/Model" />
+  </Target>
 
 </Project>

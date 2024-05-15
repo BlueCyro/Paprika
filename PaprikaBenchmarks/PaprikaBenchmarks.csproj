@@ -20,7 +20,7 @@
 
   
   <ItemGroup>
-    <ProjectReference Include="..\Renderer\Paprika.csproj" />
+    <ProjectReference Include="..\Paprika\Paprika.csproj" />
   </ItemGroup>
 
 </Project>

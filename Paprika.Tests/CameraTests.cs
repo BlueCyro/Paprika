@@ -8,7 +8,7 @@ using static VectorHelpers;
 public class CameraTests
 {
     [TestMethod]
-    public void TestCameraPos()
+    public void CameraPosTest()
     {
         PaprikaCamera cam = new();
         Vector3 expected = new(1f, 2f, 3f);
@@ -21,7 +21,7 @@ public class CameraTests
 
 
     [TestMethod]
-    public void TestCameraRot()
+    public void CameraRotTest()
     {
         PaprikaCamera cam = new();
         Quaternion expected = Quaternion.CreateFromYawPitchRoll(120f * DEG2RAD, 34f * DEG2RAD, 90f * DEG2RAD);
@@ -34,7 +34,7 @@ public class CameraTests
 
 
     [TestMethod]
-    public void TestCameraRotFromMatrix()
+    public void CameraRotFromMatrixTest()
     {
         PaprikaCamera cam = new();
         Quaternion expected = Quaternion.CreateFromYawPitchRoll(120f * DEG2RAD, 34f * DEG2RAD, 90f * DEG2RAD);
@@ -54,25 +54,25 @@ public class CameraTests
 
 
     [TestMethod]
-    public void TestCameraOrientating()
+    public void CameraOrientatingTest()
     {
         PaprikaCamera cam = new();
-        Vector3 expectedPos = new(8f, 2f, 25f);
-        Quaternion expectedRot = Quaternion.CreateFromYawPitchRoll(25f * DEG2RAD, 19.24f * DEG2RAD, -56.7583f * DEG2RAD);
+        Vector3 expectedPos = new(0.51144695f, 2.4718034f, 8.403356f);
+        Quaternion expectedRot = new(-0.019815441f, -0.9137283f, 0.40335205f, -0.044888653f);
 
 
         float epsilon = 0.00001f;
 
 
-        cam.Rotation = expectedRot;
         cam.Position = expectedPos;
+        cam.Rotation = expectedRot;
 
 
-        Vector3 suspectPos = cam.TRSMatrix.Translation;
-        Quaternion suspectRot = Quaternion.CreateFromRotationMatrix(cam.TRSMatrix);
+        Vector3 suspectPos = cam.Position;
+        Quaternion suspectRot = cam.Rotation;
         
 
-        Assert.AreEqual(cam.Position, suspectPos);
+        Assert.AreEqual(expectedPos, suspectPos);
         
         Assert.AreEqual(expectedRot.X, suspectRot.X, epsilon);
         Assert.AreEqual(expectedRot.Y, suspectRot.Y, epsilon);
@@ -83,7 +83,7 @@ public class CameraTests
 
 
     [TestMethod]
-    public void TestProjectionMatrix()
+    public void ProjectionMatrixTest()
     {
         Vector3 inputPos = new(8f, 2f, 25f);
         Quaternion inputRot = Quaternion.CreateFromYawPitchRoll(25f * DEG2RAD, 19.24f * DEG2RAD, -56.7583f * DEG2RAD);
@@ -93,7 +93,7 @@ public class CameraTests
 
         Matrix4x4 expected = Matrix4x4.CreatePerspectiveFieldOfView(cam.FOV.ToRadians(), inputSize.AspectRatio, camInterface.NearClip, camInterface.FarClip);
 
-        Matrix4x4 actual = CameraHelpers.GetProjectionMatrix(cam, inputSize);
+        Matrix4x4 actual = ICamera<int>.GetProjectionMatrix(cam, inputSize);
 
 
 

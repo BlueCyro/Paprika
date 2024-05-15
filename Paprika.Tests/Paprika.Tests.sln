@@ -5,24 +5,24 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paprika.Tests", "Paprika.Tests.csproj", "{81B93B72-08AA-42BE-9BF0-0AA12DFFBDA4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paprika", "..\Renderer\Paprika.csproj", "{ED3FA75A-EBE1-4485-B9BB-9FC37CF2BE50}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paprika", "..\Paprika\Paprika.csproj", "{32343494-7E3F-43ED-953E-8BFA7B2A8739}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{81B93B72-08AA-42BE-9BF0-0AA12DFFBDA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{81B93B72-08AA-42BE-9BF0-0AA12DFFBDA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{81B93B72-08AA-42BE-9BF0-0AA12DFFBDA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{81B93B72-08AA-42BE-9BF0-0AA12DFFBDA4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{ED3FA75A-EBE1-4485-B9BB-9FC37CF2BE50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{ED3FA75A-EBE1-4485-B9BB-9FC37CF2BE50}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{ED3FA75A-EBE1-4485-B9BB-9FC37CF2BE50}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{ED3FA75A-EBE1-4485-B9BB-9FC37CF2BE50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32343494-7E3F-43ED-953E-8BFA7B2A8739}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32343494-7E3F-43ED-953E-8BFA7B2A8739}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32343494-7E3F-43ED-953E-8BFA7B2A8739}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32343494-7E3F-43ED-953E-8BFA7B2A8739}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

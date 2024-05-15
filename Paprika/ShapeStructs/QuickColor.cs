@@ -17,7 +17,7 @@ public ref struct QuickColor
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public QuickColor(in byte r, in byte g, in byte b, in byte a)
+    public QuickColor(byte r, byte g, byte b, byte a)
     {
         R = r;
         G = g;
@@ -38,12 +38,12 @@ public ref struct QuickColor
 
 
 
-    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    // public static void PackedFromVector3(in Vector3 rgb, out int color)
-    // {
-    //     Vector3 mul = rgb * 255f;
-    //     color = PaprikaRenderer_OLD.AllBits << 24 | (byte)mul.Z << 16 | (byte)mul.Y << 8 | (byte)mul.X;
-    // }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void PackedFromVector3(in Vector3 rgb, out int color)
+    {
+        Vector3 mul = rgb * 255f;
+        color = unchecked((int)uint.MaxValue) << 24 | (byte)mul.Z << 16 | (byte)mul.Y << 8 | (byte)mul.X;
+    }
 
 
 

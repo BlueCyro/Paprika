@@ -1,155 +1,104 @@
-// using System.Numerics;
-// using System.Runtime.CompilerServices;
-// using System.Runtime.Intrinsics;
-// using BepuUtilities;
-// using bottlenoselabs.C2CS.Runtime;
-// using Tracy;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using BepuUtilities;
 
-
-// namespace Paprika;
-
-
-// public partial class PaprikaRenderer_OLD
-// {
-//     const int red = 255 << 24;
-//     private DumbBuffer<TriangleWide> geometry;
-
-//     public void DumpUploadGeometry(DumbBuffer<TriangleWide> buffer)
-//     {
-//         geometry = buffer;
-//     }
-
-//     // private void ResizeBuffer()
-//     // {
-//     //     pixelBuffer1 = new int[FrameBufferSize.Length1D];
-//     //     pixelBuffer2 = new int[FrameBufferSize.Length1D];
-//     // }
+namespace Paprika;
 
 
 
-
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public void SetPixel(in int data, in int x, in int y)
-//     {
-//         SetPixel(data, x + y * FrameBufferSize.Width);
-//     }
+public struct PaprikaRenderer : IRenderer<int>
+{
+    DumbBuffer<float> ZBuffer;
 
 
+    public void RenderFrame<TCamera>(in RenderBuffer<int> renderBuffer, in TCamera mainCam) where TCamera: struct, ICamera<int>
+    {
+        // ValidateBuffers(in renderBuffer);
 
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public void SetPixel(in int data, in float x, in float y)
-//     {
-//         SetPixel(data, (int)x + (int)y * FrameBufferSize.Width);
-//     }
-
-
-
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public void SetPixel(in int data, in int index)
-//     {
-//         RenderOutput.PixelBuffer.Buffer.Span[Math.Clamp(index, 0, FrameBufferSize.Length1D - 1)] = data;
-//     }
-
-
-
-//     public void RenderFrame()
-//     {
-//         // var profileScope = Profiler.BeginEvent("Wide projection", colorType: Profiler.ColorType.NavyBlue);
-//         // var triWideScope = Profiler.BeginEvent("TriWideLoop", colorType: Profiler.ColorType.NavyBlue);
-//         // DumbBuffer<TriangleWide> triArray = Program.WideUploaded;
-//         // TriangleWide[] triArray = Program.WideUploaded;
-
+        renderBuffer.Buffer.Clear();
+        ZBuffer.Fill(float.MaxValue);
         
-//         Matrix4x4 mvpMatrix = MainCamera.ViewProjectionMatrix * viewportMatrix; // Camera view projection -> viewport
-//         Matrix4x4Wide.Broadcast(mvpMatrix, out Matrix4x4Wide mvpMatrixWide); // Broadcast to wide matrix for triangle transformation
-//         Vector3Wide wideCameraPos = Vector3Wide.Broadcast(MainCamera.Position); // Broadcast to wide camera pos
-
-//         Int4Wide.Broadcast(Vector128.Create(FrameBufferSize.Width, FrameBufferSize.Height - 1, FrameBufferSize.Width, FrameBufferSize.Height - 1), out Int4Wide frameBounds);
-//         // Vector4Wide zero = new();
-//         Int4Wide zero = new();
-//         // EdgesVectorized edges = new();
-//         DumbBuffer<int> colBuf = RenderOutput.PixelBuffer.Buffer;
-//         DumbBuffer<float> zBuf = RenderOutput.ZBuffer.Buffer;
-
-//         // float dot;
-
+        DumbBuffer<TriangleWide> geo = GeometryHolder<TriangleWide>.Geometry;
+        Matrix4x4 projectionMatrix = CameraHelpers.GetPerspectiveProjection<TCamera, int>(mainCam, renderBuffer.Size);
         
+        Matrix4x4 viewportMatrix = renderBuffer.GetViewportMatrix();
 
-//         for (int i = 0; i < geometry.Length; i++)
-//         {
-//             // var triBatchProject = Profiler.BeginEvent("Triangle batch screen project", Profiler.ColorType.Orange);
-
-//             // TriangleWide curTri = geometry[i];
-
-//             TriangleWide.GetCenter(in geometry[i], out Vector3Wide center);
-//             TriangleWide.GetNormal(in geometry[i], out Vector3Wide normal);
-
-//             Vector3Wide.Subtract(in wideCameraPos, in center, out Vector3Wide diff);
-//             Vector3Wide normalized = Vector3Wide.Normalize(diff);
-//             Vector3Wide.Dot(in normal, in normalized, out Vector<float> dots);
-
-//             if (Vector.LessThanOrEqualAll(dots, Vector<float>.Zero))
-//                 continue;
-
-//             TriangleWide.Transform(in geometry[i], in mvpMatrixWide, out TriangleWide transformed);
-//             TriangleWide.ZDivide(in transformed, out Vector3Wide oldZWide, out transformed);
-//             // TriangleWide.GetBounds(transformed, out Vector3Wide bboxMinWide, out Vector3Wide bboxMaxWide);
-//             TriangleWide.Get2DBounds(in transformed, out Int4Wide bbox);
-            
-
-//             // Console.WriteLine($"V4 bbox: {result}");
-//             // bool bboxCheck = 
-//             //     Vector.GreaterThanOrEqualAll(bbox.X, zero.X) &&
-//             //     Vector.GreaterThanOrEqualAll(bbox.Y, zero.Y) &&
-//             //     Vector.LessThanOrEqualAll(bbox.Z, frameBounds.Z) &&
-//             //     Vector.LessThanOrEqualAll(bbox.W, frameBounds.W);
+        Matrix4x4Wide wideScreenProject = Matrix4x4Wide.Broadcast(mainCam.ViewMatrix * projectionMatrix * viewportMatrix);
 
 
-//             // if (!bboxCheck)
-//             //     continue;
-
-//             // Vector4Wide.Scale(bbox, vecWidthRecip, out bbox);
-//             // VectorHelpers.AlignWidth(bbox, out bbox);
-//             // Vector4Wide.Scale(bbox, vecWidth, out bbox);
-//             // VectorHelpers.VectorAlignWidth(bbox, out bbox);
+        Int4Wide bounds = Int4Wide.Broadcast(renderBuffer.Size.Width, renderBuffer.Size.Height - 1, renderBuffer.Size.Width, renderBuffer.Size.Height - 1);
+        Vector3Wide wideCamPos = Vector3Wide.Broadcast(mainCam.Position);
 
 
-//             Int4Wide.Clamp(in bbox, in zero, in frameBounds, out Int4Wide result);
-//             // Int4Wide.Max(bbox, zero, out Int4Wide result);
-//             // Int4Wide.Min(result, frameBounds, out result);
-//             // bboxMinWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.X), wideFrameWidth);
-//             // bboxMinWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMinWide.Y), wideFrameHeight);
-//             // bboxMaxWide.X = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.X), wideFrameWidth);
-//             // bboxMaxWide.Y = Vector.Min(Vector.Max(Vector<float>.Zero, bboxMaxWide.Y), wideFrameHeight);
+
+        for (int i = 0; i < geo.Length; i++)
+        {
+            bool cull = ShouldBackfaceCull(geo[i], wideCamPos, out Vector<float> wideDot);
+            if (cull)
+                 continue;
+
+            // ShouldBackfaceCull(geo[i], wideCamPos, out Vector<float> wideDot);
 
             
-//             // triBatchProject.Dispose();
+            TriangleWide projected = ProjectTriangleWide(geo[i], wideScreenProject, bounds, out Int4Wide wideBounds, out Vector3Wide oldZWide);
 
 
-//             for (int j = 0; j < Vector<float>.Count; j++)
-//             {
-//                 // var triNarrowProcess = Profiler.BeginEvent("Narrow triangle extract & process");
-//                 // if (j != 7 || i != 0)
-//                 //     continue;
-
-//                 // dot = dots[j];
-
-//                 // if (dot <= 0f)
-//                 //     continue;
-
-//                 TriangleWide.ReadSlot(ref transformed, j, out Triangle narrowTri);
-//                 // Vector3 vec = Vector3.One * dot;
-//                 // QuickColor.PackedFromVector3(vec, out int color);
-//                 Int4Wide.ReadSlot(ref result, j, out Vector128<int> bboxNarrow);
-//                 Vector3Wide.ReadSlot(ref oldZWide, j, out Vector3 oldZ);
-
+            for (int j = 0; j < Vector<float>.Count; j++)
+            {
+                TriangleWide.ReadSlot(ref projected, j, out Triangle narrowTri);
+                Int4Wide.ReadSlot(ref wideBounds, j, out Vector128<int> narrowBounds);
+                Vector3Wide.ReadSlot(ref oldZWide, j, out Vector3 narrowZ);
                 
-//                 DrawPinedaTriangleSIMD(in narrowTri, 255, in colBuf, in zBuf, in bboxNarrow, in oldZ/*, ref edges*/);
-//                 // triNarrowProcess.Dispose();
-//             }
 
-//         }
-//         // triWideScope.Dispose();
-//         // Thread.Sleep(500);
-//     }
-// }
+                QuickColor.PackedFromVector3(Vector3.One * wideDot[j], out int color);
+                narrowTri.DrawSIMD(ref renderBuffer.Buffer[0], ref ZBuffer[0], narrowBounds, narrowZ, renderBuffer.Size, color);
+            }
+        }
+
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TriangleWide ProjectTriangleWide(
+        in TriangleWide triWide,
+        in Matrix4x4Wide wideScreenProject,
+        in Int4Wide frameBounds,
+        out Int4Wide bounds,
+        out Vector3Wide oldZWide)
+    {
+        TriangleWide transformed = TriangleWide.Transform(triWide, wideScreenProject);
+
+        transformed = TriangleWide.ZDivide(transformed, out oldZWide);
+
+        bounds = Int4Wide.Clamp(TriangleWide.Get2DBounds(transformed), Int4Wide.Zero, frameBounds);
+
+        return transformed;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool ShouldBackfaceCull(in TriangleWide triWide, in Vector3Wide wideCamPos, out Vector<float> wideDot)
+    {
+        TriangleWide.GetCenter(triWide, out Vector3Wide center);
+        TriangleWide.GetNormal(triWide, out Vector3Wide normal);
+
+        wideDot = Vector3Wide.Dot(Vector3Wide.Normalize(wideCamPos - center), normal);
+
+        return Vector.LessThanOrEqualAll(
+            wideDot,
+            Vector<float>.Zero);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ValidateBuffers(in RenderBuffer<int> renderBuffer, int alignment = 32)
+    {
+        // Console.WriteLine($"Validating buffer: Input length is {renderBuffer.Buffer.Length}, ZBuffer length is {ZBuffer.Length}");
+        if (ZBuffer.Length != renderBuffer.Buffer.Length)
+            ZBuffer = new(renderBuffer.Buffer.Length, alignment);
+    }
+}

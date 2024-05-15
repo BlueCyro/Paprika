@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "C#: Paprika Demo Debug",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": {
+                "task": "build",
+                "type": "dotnet"
+            },
+            "cwd": "${workspaceFolder}/Demo",
+            "program": "${workspaceFolder}/Demo/bin/Debug/net8.0/Demo.dll",
+        },
+        {
             "name": "Debug Paprika",
             "type": "coreclr",
             "request": "launch",

@@ -43,6 +43,36 @@ public struct Matrix4x4Wide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Matrix4x4Wide Broadcast(in Matrix4x4 from)
+    {
+        Unsafe.SkipInit(out Matrix4x4Wide widened);
+        
+        widened.X.X = new(from.M11);
+        widened.X.Y = new(from.M12);
+        widened.X.Z = new(from.M13);
+        widened.X.W = new(from.M14);
+
+        widened.Y.X = new(from.M21);
+        widened.Y.Y = new(from.M22);
+        widened.Y.Z = new(from.M23);
+        widened.Y.W = new(from.M24);
+
+        widened.Z.X = new(from.M31);
+        widened.Z.Y = new(from.M32);
+        widened.Z.Z = new(from.M33);
+        widened.Z.W = new(from.M34);
+
+        widened.W.X = new(from.M41);
+        widened.W.Y = new(from.M42);
+        widened.W.Z = new(from.M43);
+        widened.W.W = new(from.M44);
+
+        return widened;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void CreateIdentity(out Matrix4x4Wide identity)
     {
         identity.X.X = Vector<float>.One;

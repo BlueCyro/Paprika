@@ -4,60 +4,18 @@ using System.Runtime.CompilerServices;
 
 namespace Paprika;
 
-using static VectorHelpers;
-
 public struct PaprikaCamera : ICamera<int>
 {
-    public PaprikaCamera()
+    public PaprikaCamera(float nearClip, float farClip, float fov, Size2D resolution, Vector3 position, Quaternion rotation)
     {
-        trsMatrix = Matrix4x4.Identity;
-    }
-
-
-
-    public PaprikaCamera(float nearClip, float farClip, float fov, Size2D resolution, Vector3 position, Quaternion rotation) : this()
-    {
-        trsMatrix = Matrix4x4.Transform(trsMatrix, rotation);
-        trsMatrix.Translation = position;
+        Position = position;
+        Rotation = rotation;
         FOV = fov;
     }
-    
-
-
-    // public RenderBuffer<int>? RenderBuffer { get; set; }
-    
-    
-    public readonly Matrix4x4 ViewProjectionMatrix
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => LookAtMatrix * ProjectionMatrix;
-    }
 
 
 
-    public Vector3 Position
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        readonly get => trsMatrix.Translation;
-        set
-        {
-            trsMatrix.Translation = value;
-            UpdateViewMatrix();
-        }
-    }
-
-
-
-    public Matrix4x4 LookAtMatrix
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get;
-        private set;
-    }
-
-
-
-    public Matrix4x4 ProjectionMatrix
+    public Matrix4x4 ViewMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get;
@@ -66,13 +24,7 @@ public struct PaprikaCamera : ICamera<int>
     
     
     
-    public Matrix4x4 TRSMatrix
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        readonly get => trsMatrix;
-        set => trsMatrix = value;
-    }
-    Matrix4x4 trsMatrix;
+    public Matrix4x4 TRSMatrix { get; set; }
 
 
 
@@ -84,10 +36,24 @@ public struct PaprikaCamera : ICamera<int>
         {
             // Quaternion.CreateFromRotationMatrix(trsMatrix);
             rotation = value;
-            trsMatrix = Matrix4x4.Transform(trsMatrix, value);
+            UpdateViewMatrix();
         }
     }
-    Quaternion rotation;
+    Quaternion rotation = Quaternion.Identity;
+
+
+
+    public Vector3 Position
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        readonly get => position;
+        set
+        {
+            position = value;
+            UpdateViewMatrix();
+        }
+    }
+    Vector3 position;
 
 
     
@@ -95,31 +61,31 @@ public struct PaprikaCamera : ICamera<int>
 
 
 
+    public readonly Vector3 Up => Vector3.Transform(Vector3.UnitY, rotation);
+
+
+
+    public readonly Vector3 Right => Vector3.Transform(Vector3.UnitX, rotation);
+
+
+
+    public readonly Vector3 Forward => Vector3.Transform(Vector3.UnitZ, rotation);
+
+
+
     private void UpdateViewMatrix()
     {
-        Matrix4x4 rotMat = Matrix4x4.CreateFromQuaternion(Rotation);
+        // Matrix4x4 rotMat = Matrix4x4.CreateFromQuaternion(Rotation);
 
-        Vector3 forward = Vector3.Transform(Vector3.UnitZ, rotMat);
-        Vector3 up = Vector3.Transform(Vector3.UnitY, rotMat);
+        // Vector3 forward = Vector3.Transform(Vector3.UnitZ, Rotation);
+        // Vector3 up = Vector3.Transform(Vector3.UnitY, Rotation);
         // Vector3 right = Vector3.Transform(Vector3.UnitX, rotMat);
-        LookAtMatrix = Matrix4x4.CreateLookAt(Position, forward, up);
+        ViewMatrix = Matrix4x4.CreateLookAt(Position, Position + Forward, Up);
+
+        // Matrix4x4 rotMatrix = Matrix4x4.CreateFromQuaternion(rotation);
+
+        // Matrix4x4 transMatrix = Matrix4x4.CreateTranslation(position);
+
+        // ViewMatrix = transMatrix * rotMatrix;
     }
-}
-
-
-
-public struct PaprikaRenderer : IRenderer<int>
-{
-    public RenderBuffer<int> OutputBuffer { get; private set; }
-    public ICamera<int> MainCamera { get; private set; }
-    public readonly bool CanUploadGeometry => true;
-
-
-
-    public void RenderFrame()
-    {
-
-    }
-
-
 }

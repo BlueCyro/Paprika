@@ -75,25 +75,6 @@ public class Program
 }
 
 
-
-public static class ScreenQuad
-{
-    public static float[] Vertices = [ // Screen quad
-        1.0f,  1.0f,  0.0f,    1f, 1f,
-        1.0f, -1.0f,  0.0f,    1f, 0f,
-       -1.0f, -1.0f,  0.0f,    0f, 0f,
-       -1.0f,  1.0f,  0.0f,    0f, 1f
-    ];
-
-
-
-    public static uint[] Indices = [
-        0u, 1u, 3u,
-        1u, 2u, 3u
-    ];
-}
-
-
 public static class TestCube
 {
     public static float[] CubeData = {
@@ -142,6 +123,7 @@ public class DumbUploader
 {
     public DumbBuffer<TriangleWide> WideUploaded;
     public List<TriangleWide> widebatches = [];
+    public List<Triangle> singles = [];
 
 
 
@@ -156,10 +138,11 @@ public class DumbUploader
 
         var model = ModelRoot.Load($"{path}");
 
-        var triList = model.LogicalMeshes.SelectMany(m => {
+        singles = model.LogicalMeshes.SelectMany(m => {
             var meshTris = m.EvaluateTriangles().Select<(IVertexBuilder A, IVertexBuilder B, IVertexBuilder C, Material mat), Triangle>(triangle => {
                 Matrix4x4 worldMat = model.LogicalNodes[m.LogicalIndex].WorldMatrix;
-                worldMat.Translation += new Vector3(0f, 0f, 0f);
+                // worldMat = Matrix4x4.Transform(worldMat, Quaternion.CreateFromAxisAngle(new(0f, 0f, 1f), 180));
+                // worldMat.Translation += new Vector3(0f, 0f, 0f);
 
                 
                 Triangle tri = new(
@@ -181,13 +164,13 @@ public class DumbUploader
 
 
         // foreach (Triangle tri in triList);
-        for (int i = 0; i < triList.Count; i += Vector<float>.Count)
+        for (int i = 0; i < singles.Count; i += Vector<float>.Count)
         {
             TriangleWide current = new();
             for (int j = 0; j < Vector<float>.Count; j++)
             {
-                int realIndex = Math.Min(i + j, triList.Count - 1);
-                Triangle curTri = triList[realIndex];
+                int realIndex = Math.Min(i + j, singles.Count - 1);
+                Triangle curTri = singles[realIndex];
                 TriangleWide.WriteSlot(ref curTri, j, ref current);
             }
             widebatches.Add(current);

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -9,9 +10,9 @@ namespace Paprika;
 
 
 [StructLayout(LayoutKind.Sequential, Size = 64)]
-public struct Triangle // Field offsets help significantly in aligning the memory for this struct
-{                      // These may be evil. Testing is pending...
-    // [FieldOffset(0)]
+public struct Triangle : IGeometry  // Field offsets help significantly in aligning the memory for this struct
+{                                   // These may be evil. Testing is pending...
+    // [FieldOffset(0)]             // They were. FieldOffsets pessimize the JIT - worse codegen quality
     public Vector4 A;
 
     // [FieldOffset(16)]
@@ -64,6 +65,64 @@ public struct Triangle // Field offsets help significantly in aligning the memor
     }
 
 
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly void DrawSIMD( // Draw using Pineda method
+        ref int bufStart,
+        ref float zBufStart,
+        in Vector128<int> bbox,
+        in Vector3 oldZ,
+        in Size2D bufferResolution,
+        int col)
+    {
+        Vector<int> wideCol = new(col);
+        EdgesVectorized edges = new(A, B, C);
+        // edges.UpdateEdges(tri.A, tri.B, tri.C);
+
+        int minX = bbox[0];
+        int minY = bbox[1];
+        int maxX = bbox[2];
+        int maxY = bbox[3];
+
+        for (int y = maxY; y > minY; y--)
+        {
+            int row = y * bufferResolution.Width;
+            for (int x = maxX; x > minX; x -= Vector<int>.Count)
+            {
+                int vecStart = x - Vector<int>.Count + row;
+                // int vecFloatStart = x - Vector<float>.Count + row;
+
+                ref int colStart = ref Unsafe.Add(ref bufStart, vecStart);
+                ref float zStart = ref Unsafe.Add(ref zBufStart, vecStart);
+
+
+                Vector<int> bufVec = Vector.LoadUnsafe(ref colStart);
+                Vector<float> bufVecZ = Vector.LoadUnsafe(ref zStart);
+
+
+                edges.IsInside(x, y, out Vector3Wide eN);
+
+
+                RasterHelpers.InterpolateBarycentric(oldZ.X, oldZ.Y, oldZ.Z, in eN, out Vector<float> bigDepth);
+                Vector<int> depthMask = Vector.LessThanOrEqual(bigDepth, bufVecZ);
+
+
+                Vector<int> mask =
+                    Vector.GreaterThanOrEqual(eN.X, Vector<float>.Zero) &
+                    Vector.GreaterThanOrEqual(eN.Y, Vector<float>.Zero) &
+                    Vector.GreaterThanOrEqual(eN.Z, Vector<float>.Zero);
+
+                Vector<int> colResult = Vector.ConditionalSelect(mask & depthMask, wideCol, bufVec);
+                Vector<float> zResult = Vector.ConditionalSelect(mask & depthMask, bigDepth, bufVecZ);
+
+                colResult.StoreUnsafe(ref colStart);
+                zResult.StoreUnsafe(ref zStart);
+            }
+        }
+    }
+
+
+
     public override readonly string ToString()
     {
         return $"<[[{A}]], [[{B}]], [[{C}]]>";
@@ -75,8 +134,9 @@ public struct Triangle // Field offsets help significantly in aligning the memor
 }
 
 
+
 // [StructLayout(LayoutKind.Sequential, Pack = 128)]
-public struct TriangleWide
+public struct TriangleWide : IGeometry
 {
     public Vector3Wide A;
     public Vector3Wide B;
@@ -127,6 +187,25 @@ public struct TriangleWide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Int4Wide Get2DBounds(in TriangleWide bundle)
+    {
+        Unsafe.SkipInit(out Vector4Wide boundsSingle);
+        ref Vector2Wide boundsMin = ref boundsSingle.AsVector2();
+        ref Vector2Wide boundsMax = ref Unsafe.Add(ref boundsSingle.AsVector2(), 1);
+
+        // Using min/max like this rather than using two out parameters yields a shorter method from the JIT
+        VectorHelpers.Min(VectorHelpers.Min(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMin);
+
+        VectorHelpers.Max(VectorHelpers.Max(bundle.A.AsVector2(), bundle.B.AsVector2()), bundle.C.AsVector2(), out boundsMax);
+
+        boundsSingle.ConvertToInt32(out Int4Wide bounds);
+
+        return bounds;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void GetTotalBounds(in TriangleWide bundle, out Vector3 min, out Vector3 max)
     {
         GetBounds(bundle, out Vector3Wide minWide, out Vector3Wide maxWide);
@@ -164,11 +243,48 @@ public struct TriangleWide
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TriangleWide ZDivide(in TriangleWide bundle, out Vector3Wide oldZ)
+    {
+        oldZ.X = bundle.A.Z;
+        oldZ.Y = bundle.B.Z;
+        oldZ.Z = bundle.C.Z;
+
+        Unsafe.SkipInit(out TriangleWide divided);
+
+        // The scale function here appears to yield a shorter method than the direct divisions from the JIT
+        Vector3Wide.Scale(bundle.A, MathHelper.FastReciprocal(Vector.Max(bundle.A.Z, Vector<float>.Zero)), out divided.A);
+        Vector3Wide.Scale(bundle.B, MathHelper.FastReciprocal(Vector.Max(bundle.B.Z, Vector<float>.Zero)), out divided.B);
+        Vector3Wide.Scale(bundle.C, MathHelper.FastReciprocal(Vector.Max(bundle.C.Z, Vector<float>.Zero)), out divided.C);
+
+        // divided.A = bundle.A / Vector.Max(bundle.A.Z, Vector<float>.Zero);
+        // divided.B = bundle.B / Vector.Max(bundle.B.Z, Vector<float>.Zero);
+        // divided.C = bundle.C / Vector.Max(bundle.C.Z, Vector<float>.Zero);
+
+        return divided;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Transform(in TriangleWide bundle, in Matrix4x4Wide transform, out TriangleWide transformed)
     {
         Matrix4x4Wide.Transform(bundle.A, transform, out transformed.A);
         Matrix4x4Wide.Transform(bundle.B, transform, out transformed.B);
         Matrix4x4Wide.Transform(bundle.C, transform, out transformed.C);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TriangleWide Transform(in TriangleWide bundle, in Matrix4x4Wide transform)
+    {
+        Unsafe.SkipInit(out TriangleWide transformed);
+        
+        Matrix4x4Wide.Transform(bundle.A, transform, out transformed.A);
+        Matrix4x4Wide.Transform(bundle.B, transform, out transformed.B);
+        Matrix4x4Wide.Transform(bundle.C, transform, out transformed.C);
+
+        return transformed;
     }
 
 

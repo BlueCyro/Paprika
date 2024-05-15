@@ -136,7 +136,7 @@ What should the contract for render output look like? What attributes are most i
 - Is itself a struct, further type specialization, avoids virtual dispatch like the plague
 - Render resolution
     - Width, height, probably can just use Size2D here
-- Color buffer (Required - potentially referenced from renderers?)
+- Color buffer; required, passed by reference to renderers
 - Generic type 'TRenderer' constrained to struct, IRenderer; ensures JIT type specialization
 - 'Update' function; used to update internal renderer state with whatever is required by the implementation
 - Optional callback for resolution resizing
@@ -150,11 +150,7 @@ The renderer handles the method by which pixels are written to the final color b
 
 What should the contract for renderers look like?
 
-- The renderer must define at least one color buffer, with additional buffers being left up to implementation
-- 'SetupBuffers' function to set up the renderer's internal buffers
-    - Takes 'in' Size2D as Width/Height parameter for buffers
 - 'RenderFrame' function to update internal state of renderer
-    - Passes out final color buffer by ref
 - Defines at least one Camera as 'MainCamera' property
 - Other cameras left up to implementation
 - Geometry type left up to implementation, but defined by second generic argument 'TGeo'

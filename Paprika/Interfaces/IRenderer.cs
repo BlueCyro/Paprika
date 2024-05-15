@@ -3,10 +3,6 @@ namespace Paprika;
 public interface IRenderer<TPixel>
 
 where TPixel: unmanaged
-
 {
-    public RenderBuffer<TPixel> OutputBuffer { get; }
-    public ICamera<TPixel> MainCamera { get; }
-    public bool CanUploadGeometry { get; }
-    public void RenderFrame();
+    public void RenderFrame<TCamera>(in RenderBuffer<TPixel> buffer, in TCamera mainCam) where TCamera: struct, ICamera<TPixel>;
 }

@@ -17,7 +17,9 @@ public struct Int4Wide
     public Vector<int> W;
 
 
+    public static Int4Wide Zero => new();
 
+    
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Broadcast(in Vector128<int> narrow, out Int4Wide bundle)
@@ -26,6 +28,32 @@ public struct Int4Wide
         bundle.Y = new(narrow[1]);
         bundle.Z = new(narrow[2]);
         bundle.W = new(narrow[3]);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Broadcast(int x, int y, int z, int w, out Int4Wide bundle)
+    {
+        bundle.X = new(x);
+        bundle.Y = new(y);
+        bundle.Z = new(z);
+        bundle.W = new(w);
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Int4Wide Broadcast(int x, int y, int z, int w)
+    {
+        Unsafe.SkipInit(out Int4Wide bundle);
+
+        bundle.X = new(x);
+        bundle.Y = new(y);
+        bundle.Z = new(z);
+        bundle.W = new(w);
+
+        return bundle;
     }
 
 
@@ -52,12 +80,28 @@ public struct Int4Wide
 
 
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Clamp(in Int4Wide value, in Int4Wide min, in Int4Wide max, out Int4Wide clamped)
     {
         clamped.X = Vector.Max(min.X, Vector.Min(value.X, max.X));
         clamped.Y = Vector.Max(min.Y, Vector.Min(value.Y, max.Y));
         clamped.Z = Vector.Max(min.Z, Vector.Min(value.Z, max.Z));
         clamped.W = Vector.Max(min.W, Vector.Min(value.W, max.W));
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Int4Wide Clamp(in Int4Wide value, in Int4Wide min, in Int4Wide max)
+    {
+        Unsafe.SkipInit(out Int4Wide clamped);
+
+        clamped.X = Vector.Max(min.X, Vector.Min(value.X, max.X));
+        clamped.Y = Vector.Max(min.Y, Vector.Min(value.Y, max.Y));
+        clamped.Z = Vector.Max(min.Z, Vector.Min(value.Z, max.Z));
+        clamped.W = Vector.Max(min.W, Vector.Min(value.W, max.W));
+
+        return clamped;
     }
 
 

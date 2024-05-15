@@ -49,6 +49,7 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
     }
 
 
+
     public readonly Span<T> Span
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -79,7 +80,7 @@ public readonly unsafe struct DumbBuffer<T> : IDisposable where T: unmanaged
         
         int byteLen = sizeof(T) * Length;
         // LengthBytes = (nuint)(alignedByteSize * Length);
-        LengthBytes = (nuint)byteLen;
+        LengthBytes = (nuint)Math.Pow(2, Math.Ceiling(Math.Log(byteLen) / Math.Log(2)));
         // LengthBytes = (nuint)(Math.Ceiling((float)byteLen / Vector<T>.) * alignment);
         Console.WriteLine($"Instantiating {typeof(T)} buffer with length of: {Length}, (Alignment: {alignment}), (Type size: {sizeof(T)}), (Bytes: {byteLen}), (Real: {LengthBytes})");
 

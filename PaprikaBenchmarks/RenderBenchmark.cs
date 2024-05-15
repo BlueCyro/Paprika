@@ -9,7 +9,7 @@ namespace PaprikaBenchmarks;
 public class RenderBenchmark
 {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-    BenchmarkOutput<PaprikaRenderer> benchmarkOutput;
+    BenchmarkOutput benchmarkOutput;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
     // public const string IMAGE_OUTPUT_FOLDER = "C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Paprika.Benchmarks/OutputImage";
@@ -18,7 +18,7 @@ public class RenderBenchmark
     public int Width = 1280;
     public int Height = 1024;
 
-    // [Params(8, 16, 32, 64, 128, 256)]
+    [Params(8, 16, 32, 64, 128, 256)]
     public int Alignment { get; set; } = 32;
 
 
@@ -31,12 +31,13 @@ public class RenderBenchmark
         DumbUploader uploader = new();
         Console.WriteLine("Starting geometry uploader...");
         // Console.WriteLine($"Uploading {Program.Model}");
-        uploader.Upload("C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Renderer/Model/tinobed.glb", Alignment);
+        uploader.Upload("C:/Users/Cyro/Documents/Coding Stuff/Software Renderer/Paprika/Model/tinobed.glb", Alignment);
         Console.WriteLine("Done!");
         
-        benchmarkOutput.CurrentRenderer.MainCamera.Position = new(0.51144695f, 2.4718034f, 8.403356f);
-        benchmarkOutput.CurrentRenderer.MainCamera.Rotation = new(-0.019815441f, -0.9137283f, 0.40335205f, -0.044888653f);
-        benchmarkOutput.CurrentRenderer.DumpUploadGeometry(uploader.WideUploaded);
+        benchmarkOutput.MainCamera.Position = new(0.51144695f, 2.4718034f, 8.403356f);
+        benchmarkOutput.MainCamera.Rotation = new(-0.019815441f, -0.9137283f, 0.40335205f, -0.044888653f);
+        benchmarkOutput.MainCamera.FOV = 60f;
+        GeometryHolder<TriangleWide>.UploadGeometry(uploader.WideUploaded.Span, uploader.WideUploaded.Length, Alignment);
     }
 
 
